@@ -2,20 +2,22 @@ name: Auto-Build
 
 on:
   workflow_dispatch:
-  # Push/PR autobuild disabled — run manually while iterating.
-  # push:
-  #   tags:
-  #     - 'r*'
-  # pull_request:
-  #   branches:
-  #     - v2
+    inputs:
+      publish_release:
+        description: 'Publish signed build as GitHub release'
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - 'r*'
 
 permissions:
   contents: write
 
 env:
   QT_VERSION: '6.8.2'
-  ENABLE_SIGNING: 'false'
+  ENABLE_SIGNING: 'true'
 
 jobs:
   build:
@@ -36,14 +38,17 @@ jobs:
             echo "::error::Could not read VERSION from kdASIOVersion.txt"
             exit 1
           fi
+          TAG="r$(echo "$VERSION" | tr '.' '_')"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "artifact=KoordASIO_${VERSION}.exe" >> "$GITHUB_OUTPUT"
-          if [[ "$GITHUB_REF" =~ ^refs/tags/r[0-9]+_[0-9]+_[0-9]+$ ]]; then
+          if [[ "$GITHUB_REF" =~ ^refs/tags/r[0-9]+_[0-9]+_[0-9]+$ ]] || \
+             [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.publish_release }}" == "true" ]]; then
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           else
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "Building KoordASIO $VERSION"
+          echo "Building KoordASIO $VERSION (tag $TAG)"
 
       - uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -174,12 +179,15 @@ jobs:
           path: deploy/${{ steps.version.outputs.artifact }}
           if-no-files-found: error
 
-      - name: Create draft release
-        if: startsWith(github.ref, 'refs/tags/r')
+      - name: Publish release
+        if: >-
+          startsWith(github.ref, 'refs/tags/r') ||
+          (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ steps.version.outputs.version }} (${{ github.ref_name }})
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.version }} (${{ steps.version.outputs.tag }})
           prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
-          draft: true
+          draft: false
+          make_latest: true
           files: deploy/${{ steps.version.outputs.artifact }}
