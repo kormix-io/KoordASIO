@@ -87,9 +87,13 @@ private:
     QMediaDevices *m_devices = nullptr;
     QAudioFormat m_settings;
     int bufferSize;
-    bool exclusive_mode;
-    bool input_enabled;
+    bool exclusive_mode = false;
+    bool input_enabled = true;
+    bool input_stereo_emulation = false;
+    bool output_stereo_emulation = false;
     QCheckBox *inputEnabledCheckBox;
+    QCheckBox *inputStereoCheckBox;
+    QCheckBox *outputStereoCheckBox;
     QString outputDeviceName;
     QString inputDeviceName;
     // QString fullpath = QDir::homePath() + "/.KoordASIO-builtin.toml";
@@ -108,6 +112,8 @@ private slots:
     void exclusiveModeSet();
     void writeTomlFile();
     void inputEnabledChanged(int state);
+    void inputStereoEmulationChanged(int state);
+    void outputStereoEmulationChanged(int state);
     void updateInputControlsEnabled();
     void inputDeviceChanged(int idx);
     void outputDeviceChanged(int idx);

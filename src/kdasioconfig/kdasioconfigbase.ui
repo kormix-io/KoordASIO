@@ -10,19 +10,19 @@
     <x>0</x>
     <y>0</y>
     <width>384</width>
-    <height>580</height>
+    <height>620</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>384</width>
-    <height>580</height>
+    <height>620</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>450</width>
-    <height>580</height>
+    <height>620</height>
    </size>
   </property>
   <property name="font">
@@ -890,7 +890,7 @@ QComboBox::down-arrow:on { /* shift the arrow when popup is open */
               </size>
              </property>
              <property name="toolTip">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:700;&quot;&gt;AUDIO RENDERING MODE - Tips&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Choose between Shared and Exclusive modes, provided by the WASAPI Windows audio system. &lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Shared Mode: &lt;/span&gt;lets you use the same audio device simultaneously for both ASIO and non-ASIO audio applications, so you can mix ASIO with &amp;quot;regular&amp;quot; Windows audio. This results in higher latency: you can expect between 10-20ms on a generic audio chipset.&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Exclusive Mode: &lt;/span&gt;provides the lowest latency (less than 10ms), and bit-perfect operation. This mode locks out access to the audio device from other (non-ASIO) audio applications. &lt;/p&gt;&lt;p&gt;Note: depending on your audio hardware, using Exclusive mode &lt;span style=&quot; font-style:italic;&quot;&gt;may&lt;/span&gt; result in glitches in the sound, which can be reduced by setting the Buffer Size to 512 samples or higher. If glitches still occur, please contact us via the Koord.Live link at the bottom of the window and give us a description of the issue.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:700;&quot;&gt;AUDIO RENDERING MODE - Tips&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Choose between Shared and Exclusive modes, provided by the WASAPI Windows audio system. &lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Shared Mode: &lt;/span&gt;lets you use the same audio device simultaneously for both ASIO and non-ASIO audio applications, so you can mix ASIO with &amp;quot;regular&amp;quot; Windows audio. This results in higher latency: you can expect between 10-20ms on a generic audio chipset.&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Exclusive Mode: &lt;/span&gt;provides the lowest latency (less than 10ms), and bit-perfect operation. This mode locks out access to the audio device from other (non-ASIO) audio applications. &lt;/p&gt;&lt;p&gt;Note: depending on your audio hardware, using Exclusive mode &lt;span style=&quot; font-style:italic;&quot;&gt;may&lt;/span&gt; result in glitches in the sound, which can be reduced by setting the Buffer Size to 512 samples or higher. If glitches still occur, please open an issue on the GitHub repository.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="styleSheet">
               <string notr="true">image: url(:/img/images/INFO BTN OFF.png);</string>
@@ -1427,7 +1427,7 @@ QSlider::sub-page:horizontal {
             </size>
            </property>
            <property name="toolTip">
-            <string>Open the Koord website</string>
+            <string>Open the GitHub repository</string>
            </property>
            <property name="autoFillBackground">
             <bool>false</bool>
@@ -1505,7 +1505,7 @@ QSlider::sub-page:horizontal {
             </sizepolicy>
            </property>
            <property name="toolTip">
-            <string>Source Code - Github</string>
+            <string>GitHub repository</string>
            </property>
            <property name="text">
             <string/>

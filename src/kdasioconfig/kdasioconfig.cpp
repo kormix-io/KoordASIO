@@ -49,6 +49,20 @@ KdASIOConfig::KdASIOConfig(QWidget *parent)
     verticalLayout_3->insertWidget(1, inputEnabledCheckBox);
     connect(inputEnabledCheckBox, &QCheckBox::checkStateChanged, this, &KdASIOConfig::inputEnabledChanged);
 
+    inputStereoCheckBox = new QCheckBox(tr("Present mono device as stereo"), this);
+    inputStereoCheckBox->setChecked(false);
+    inputStereoCheckBox->setStyleSheet("color: white;");
+    inputStereoCheckBox->setToolTip(tr("Opens the input device with 2 channels so mono microphones appear as stereo to ASIO hosts (e.g. Jamulus, Ableton)."));
+    verticalLayout_3->addWidget(inputStereoCheckBox);
+    connect(inputStereoCheckBox, &QCheckBox::checkStateChanged, this, &KdASIOConfig::inputStereoEmulationChanged);
+
+    outputStereoCheckBox = new QCheckBox(tr("Present mono device as stereo"), this);
+    outputStereoCheckBox->setChecked(false);
+    outputStereoCheckBox->setStyleSheet("color: white;");
+    outputStereoCheckBox->setToolTip(tr("Opens the output device with 2 channels so mono outputs appear as stereo to ASIO hosts."));
+    verticalLayout_4->addWidget(outputStereoCheckBox);
+    connect(outputStereoCheckBox, &QCheckBox::checkStateChanged, this, &KdASIOConfig::outputStereoEmulationChanged);
+
     // connect footer buttons
     connect(koordLiveButton, &QPushButton::pressed, this, &KdASIOConfig::koordLiveClicked);
     connect(githubButton, &QPushButton::pressed, this, &KdASIOConfig::githubClicked);
@@ -156,6 +170,14 @@ void KdASIOConfig::setValuesFromToml(toml::ParseResult *pr)
         inputDeviceChanged(inputDeviceBox->currentIndex());
     }
     updateInputControlsEnabled();
+    const toml::Value* input_channels = v.find("input.channels");
+    if (input_channels && input_channels->is<int>()) {
+        input_stereo_emulation = input_channels->as<int>() == 2;
+        inputStereoCheckBox->setChecked(input_stereo_emulation);
+    } else {
+        input_stereo_emulation = false;
+        inputStereoCheckBox->setChecked(false);
+    }
     const toml::Value* input_excl = v.find("input.wasapiExclusiveMode");
     if (input_excl && input_excl->is<bool>()) {
         exclusive_mode = input_excl->as<bool>();
@@ -171,6 +193,14 @@ void KdASIOConfig::setValuesFromToml(toml::ParseResult *pr)
     } else {
         outputDeviceBox->setCurrentText("Default Output Device");
         outputDeviceChanged(outputDeviceBox->currentIndex());
+    }
+    const toml::Value* output_channels = v.find("output.channels");
+    if (output_channels && output_channels->is<int>()) {
+        output_stereo_emulation = output_channels->as<int>() == 2;
+        outputStereoCheckBox->setChecked(output_stereo_emulation);
+    } else {
+        output_stereo_emulation = false;
+        outputStereoCheckBox->setChecked(false);
     }
     const toml::Value* output_excl = v.find("output.wasapiExclusiveMode");
     if (output_excl && output_excl->is<bool>()) {
@@ -194,7 +224,11 @@ void KdASIOConfig::setInstallDefaults(bool exclusive, int bufferSizeSamples)
     bufferSize = bufferSizeSamples;
     exclusive_mode = exclusive;
     input_enabled = true;
+    input_stereo_emulation = false;
+    output_stereo_emulation = false;
     inputEnabledCheckBox->setChecked(true);
+    inputStereoCheckBox->setChecked(false);
+    outputStereoCheckBox->setChecked(false);
     updateInputControlsEnabled();
     // find system audio device defaults
     QAudioDevice inputInfo(QMediaDevices::defaultAudioInput());
@@ -225,13 +259,17 @@ void KdASIOConfig::writeTomlFile()
         << "bufferSizeSamples = " << bufferSize << "\n"
         << "\n"
         << "[input]" << "\n"
-        << "device = \"" << (input_enabled ? inputDeviceName : QString()) << "\"\n"
-        << "suggestedLatencySeconds = 0.0" << "\n"
+        << "device = \"" << (input_enabled ? inputDeviceName : QString()) << "\"\n";
+    if (input_enabled && input_stereo_emulation)
+        out << "channels = 2" << "\n";
+    out << "suggestedLatencySeconds = 0.0" << "\n"
         << "wasapiExclusiveMode = " << (exclusive_mode ? "true" : "false") << "\n"
         << "\n"
         << "[output]" << "\n"
-        << "device = \"" << outputDeviceName << "\"\n"
-        << "suggestedLatencySeconds = 0.0" << "\n"
+        << "device = \"" << outputDeviceName << "\"\n";
+    if (output_stereo_emulation)
+        out << "channels = 2" << "\n";
+    out << "suggestedLatencySeconds = 0.0" << "\n"
         << "wasapiExclusiveMode = " << (exclusive_mode ? "true" : "false") << "\n";
     file.commit();
 }
@@ -243,6 +281,18 @@ void KdASIOConfig::inputEnabledChanged(int state)
     writeTomlFile();
 }
 
+void KdASIOConfig::inputStereoEmulationChanged(int state)
+{
+    input_stereo_emulation = (state == Qt::Checked);
+    writeTomlFile();
+}
+
+void KdASIOConfig::outputStereoEmulationChanged(int state)
+{
+    output_stereo_emulation = (state == Qt::Checked);
+    writeTomlFile();
+}
+
 void KdASIOConfig::updateInputControlsEnabled()
 {
     const bool enabled = input_enabled;
@@ -250,6 +300,7 @@ void KdASIOConfig::updateInputControlsEnabled()
     inputAudioSettButton->setEnabled(enabled);
     inputDeviceLabel->setEnabled(enabled);
     inputInfoLabel->setEnabled(enabled);
+    inputStereoCheckBox->setEnabled(enabled);
 }
 
 void KdASIOConfig::bufferSizeChanged(int idx)
@@ -359,7 +410,7 @@ void KdASIOConfig::outputAudioSettClicked()
 
 void KdASIOConfig::koordLiveClicked()
 {
-    QDesktopServices::openUrl(QUrl("https://koord.live", QUrl::TolerantMode));
+    QDesktopServices::openUrl(QUrl("https://github.com/kormix-io/KoordASIO", QUrl::TolerantMode));
 }
 
 void KdASIOConfig::versionButtonClicked()

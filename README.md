@@ -41,13 +41,13 @@ The default settings are as follows:
 
 The KoordASIO Control GUI lets you select your Input/Output audio devices (with
 a link to the relevant Windows control panel), choose between Shared or
-Exclusive mode, disable input when not needed, and change the Buffer Size in
-steps between 32 and 2048 samples.
+Exclusive mode, disable input when not needed, present mono devices as stereo
+when an ASIO host expects two channels, and change the Buffer Size in steps
+between 32 and 2048 samples.
 
 ## Troubleshooting
 Hopefully KoordASIO should work seamlessly out-of-the-box for you. If you do notice
-problems, please create an Issue at [the Issues page][issues] or send an email to
-music@koord.live.
+problems, please create an issue on [the Issues page][issues].
 
 ---
 
