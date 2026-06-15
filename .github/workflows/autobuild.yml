@@ -115,25 +115,46 @@ jobs:
           }
 
           Copy-Item "$root\windows\kdinstaller.iss" "$root\kdinstaller.iss" -Force
-          ISCC.exe "$root\kdinstaller.iss" "/FKoordASIO-$env:VERSION" "/DApplicationVersion=$env:VERSION"
 
-      - name: Sign installer
+      - name: Install dotnet sign tool
+        shell: pwsh
+        run: dotnet tool install --global --prerelease sign
+
+      - name: Sign deployed binaries (Azure Trusted Signing)
+        shell: pwsh
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          $deploy = "$env:GITHUB_WORKSPACE\deploy\x86_64"
+          foreach ($file in @('KoordASIO.dll', 'KoordASIOControl.exe')) {
+            sign code artifact-signing `
+              --artifact-signing-endpoint "https://weu.codesigning.azure.net" `
+              --artifact-signing-account "kormix-signing" `
+              --artifact-signing-certificate-profile "KormixProdSigningProfile" `
+              "$deploy\$file"
+          }
+
+      - name: Build installer
         shell: pwsh
         env:
           VERSION: ${{ steps.version.outputs.version }}
-          WINDOWS_CODESIGN_CERT: ${{ secrets.WINDOWS_CODESIGN_CERT }}
-          WINDOWS_CODESIGN_PWD: ${{ secrets.WINDOWS_CODESIGN_PWD }}
         run: |
-          if (-not $env:WINDOWS_CODESIGN_CERT) {
-            Write-Output 'WINDOWS_CODESIGN_CERT not set; skipping code signing'
-            exit 0
-          }
-          [IO.File]::WriteAllBytes('C:\KoordOVCert.pfx', [Convert]::FromBase64String($env:WINDOWS_CODESIGN_CERT))
-          Set-Content -Path 'C:\KoordOVCertPwd' -Value $env:WINDOWS_CODESIGN_PWD -NoNewline
-          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
-            Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
-          & $signtool.FullName sign /f C:\KoordOVCert.pfx /p (Get-Content C:\KoordOVCertPwd -Raw) `
-            /fd SHA256 /td SHA256 /tr http://timestamp.sectigo.com `
+          ISCC.exe "$env:GITHUB_WORKSPACE\kdinstaller.iss" "/FKoordASIO-$env:VERSION" "/DApplicationVersion=$env:VERSION"
+
+      - name: Sign installer (Azure Trusted Signing)
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          sign code artifact-signing `
+            --artifact-signing-endpoint "https://weu.codesigning.azure.net" `
+            --artifact-signing-account "kormix-signing" `
+            --artifact-signing-certificate-profile "KormixProdSigningProfile" `
             "$env:GITHUB_WORKSPACE\Output\KoordASIO-$env:VERSION.exe"
 
       - name: Stage artifact
