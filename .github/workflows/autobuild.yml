@@ -98,6 +98,7 @@ jobs:
           $deploy = "$root\deploy\x86_64"
           Push-Location "$root\build\release\flexasio"
           & "$qt\bin\windeployqt.exe" --release --no-compiler-runtime --dir $deploy `
+            --qmldir "$root\src\kdasioconfig" `
             --no-system-d3d-compiler --no-opengl-sw "$root\build\release\kdasioconfig\KoordASIOControl.exe"
           Pop-Location
 
