@@ -1,109 +1,116 @@
-/****************************************************************************
-**
-** Copyright (C) 2017 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of the examples of the Qt Toolkit.
-**
-** $QT_BEGIN_LICENSE:BSD$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** BSD License Usage
-** Alternatively, you may use this file under the terms of the BSD license
-** as follows:
-**
-** "Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions are
-** met:
-**   * Redistributions of source code must retain the above copyright
-**     notice, this list of conditions and the following disclaimer.
-**   * Redistributions in binary form must reproduce the above copyright
-**     notice, this list of conditions and the following disclaimer in
-**     the documentation and/or other materials provided with the
-**     distribution.
-**   * Neither the name of The Qt Company Ltd nor the names of its
-**     contributors may be used to endorse or promote products derived
-**     from this software without specific prior written permission.
-**
-**
-** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-** "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-** LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-** OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-** SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-** LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+#include <QColor>
+#include <QGuiApplication>
+#include <QPalette>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QQuickStyle>
+#include <QQuickWindow>
+#include <QWindow>
 
-#include <QtWidgets>
-#include <singleapplication.h>
-
-#include "kdasioconfig.h"
+#include "appinstance.h"
+#include "configmodel.h"
+#include "traymanager.h"
 
 namespace {
 
-bool parseBufferSize(const QString& value, int& bufferSize)
+bool parseBufferSize(const QString &value, int &bufferSize)
 {
     bool ok = false;
     const int parsed = value.toInt(&ok);
-    if (!ok) return false;
+    if (!ok)
+        return false;
     const QList<int> allowed = {32, 64, 128, 256, 512, 1024, 2048};
-    if (!allowed.contains(parsed)) return false;
+    if (!allowed.contains(parsed))
+        return false;
     bufferSize = parsed;
     return true;
+}
+
+QWindow *findMainWindow(QGuiApplication &app)
+{
+    for (QWindow *window : app.topLevelWindows()) {
+        if (qobject_cast<QQuickWindow *>(window))
+            return window;
+    }
+    return nullptr;
+}
+
+void applyDarkPalette(QGuiApplication &app)
+{
+    QPalette palette;
+    palette.setColor(QPalette::Window, QColor(30, 30, 30));
+    palette.setColor(QPalette::WindowText, QColor(240, 240, 240));
+    palette.setColor(QPalette::Base, QColor(25, 25, 25));
+    palette.setColor(QPalette::AlternateBase, QColor(35, 35, 35));
+    palette.setColor(QPalette::Text, QColor(240, 240, 240));
+    palette.setColor(QPalette::Button, QColor(45, 45, 45));
+    palette.setColor(QPalette::ButtonText, QColor(240, 240, 240));
+    palette.setColor(QPalette::Highlight, QColor(64, 128, 255));
+    palette.setColor(QPalette::HighlightedText, QColor(255, 255, 255));
+    app.setPalette(palette);
 }
 
 }
 
 int main(int argc, char **argv)
 {
-    SingleApplication app( argc, argv );
-    app.setApplicationName("KoordASIO Control");
+    QGuiApplication app(argc, argv);
+    app.setApplicationName(QStringLiteral("KoordASIO Control"));
+    app.setQuitOnLastWindowClosed(false);
+    QQuickStyle::setStyle(QStringLiteral("Fusion"));
+    applyDarkPalette(app);
 
-    KdASIOConfig audio;
+    ConfigModel configModel;
 
     if (argc >= 2) {
         const QString arg = argv[1];
-        if (!arg.compare("-defaults") || !arg.compare("-de")) {
-            audio.setInstallDefaults(true);
+        if (!arg.compare(QStringLiteral("-defaults")) || !arg.compare(QStringLiteral("-de"))) {
+            configModel.setInstallDefaults(true);
             return 0;
         }
-        if (!arg.compare("-ds")) {
-            audio.setInstallDefaults(false);
+        if (!arg.compare(QStringLiteral("-ds"))) {
+            configModel.setInstallDefaults(false);
             return 0;
         }
-        if (arg.startsWith("-buffer=")) {
+        if (arg.startsWith(QStringLiteral("-buffer="))) {
             int bufferSize = 32;
-            if (!parseBufferSize(arg.mid(8), bufferSize)) {
+            if (!parseBufferSize(arg.mid(8), bufferSize))
                 return 1;
-            }
-            audio.setInstallDefaults(true, bufferSize);
+            configModel.setInstallDefaults(true, bufferSize);
             return 0;
         }
-        if (!arg.compare("-exclusive")) {
-            audio.setInstallDefaults(true);
+        if (!arg.compare(QStringLiteral("-exclusive"))) {
+            configModel.setInstallDefaults(true);
             return 0;
         }
-        if (!arg.compare("-shared")) {
-            audio.setInstallDefaults(false);
+        if (!arg.compare(QStringLiteral("-shared"))) {
+            configModel.setInstallDefaults(false);
             return 0;
         }
     }
 
-    // in normal mode - show GUI
-    audio.show();
+    AppInstance instanceGuard(QStringLiteral("KoordASIOControl"));
+    if (!instanceGuard.isPrimary()) {
+        instanceGuard.tryNotifyPrimaryAndExit();
+        return 0;
+    }
+
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("config"), &configModel);
+    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+    if (engine.rootObjects().isEmpty())
+        return 1;
+
+    configModel.load();
+
+    QWindow *mainWindow = findMainWindow(app);
+    TrayManager tray(&configModel, mainWindow);
+    tray.show();
+
+    QObject::connect(&instanceGuard, &AppInstance::activateRequested, &tray, &TrayManager::showWindow);
+
+    if (mainWindow)
+        mainWindow->show();
+
     return app.exec();
 }

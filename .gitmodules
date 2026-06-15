@@ -25,6 +25,3 @@
 [submodule "src/dechamps_CMakeUtils"]
 	path = src/dechamps_CMakeUtils
 	url = https://github.com/dechamps/CMakeUtils.git
-[submodule "src/kdasioconfig/singleapplication"]
-	path = src/kdasioconfig/singleapplication
-	url = https://github.com/itay-grudev/SingleApplication.git
