@@ -7,81 +7,150 @@ on:
       - 'r*'
     branches:
       - v2
-      - 'autobuild*'
   pull_request:
     branches:
       - v2
 
+permissions:
+  contents: write
+
+env:
+  QT_VERSION: '6.8.2'
+
 jobs:
-  prepare:
-    name: Prepare build
-    runs-on: ubuntu-latest
-    outputs:
-      publish_to_release: ${{ steps.version.outputs.PUBLISH_TO_RELEASE }}
-      version: ${{ steps.version.outputs.KOORDASIO_VERSION }}
-      build_version: ${{ steps.version.outputs.BUILD_VERSION }}
-      release_tag: ${{ steps.version.outputs.RELEASE_TAG }}
-      release_title: ${{ steps.version.outputs.RELEASE_TITLE }}
-      is_prerelease: ${{ steps.version.outputs.IS_PRERELEASE }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Resolve version and release metadata
-        id: version
-        shell: pwsh
-        run: ./.github/autobuild/version.ps1
-
-  build_windows:
+  build:
     name: Build Windows installer
-    needs: prepare
     runs-on: windows-2022
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Cache Qt and Chocolatey packages
-        uses: actions/cache@v4
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(grep -E '^\s*VERSION\s*=' kdASIOVersion.txt | head -1 | sed -E 's/^[^=]*=\s*//' | tr -d '\r')
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not read VERSION from kdASIOVersion.txt"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "artifact=KoordASIO_${VERSION}.exe" >> "$GITHUB_OUTPUT"
+          echo "Building KoordASIO $VERSION"
+
+      - uses: ilammy/msvc-dev-cmd@v1
         with:
-          path: |
-            C:\Qt
-            C:\ChocoCache
-          key: koordasio-qt-${{ runner.os }}-${{ hashFiles('.github/autobuild/build.ps1', 'kdASIOVersion.txt') }}
-          restore-keys: |
-            koordasio-qt-${{ runner.os }}-
+          arch: x64
 
-      - name: Setup toolchain
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qtmultimedia
+          tools: tools_ninja tools_cmake
+          aqtversion: '==3.3.*'
+          cache: true
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Download ASIO SDK
         shell: pwsh
-        run: ./.github/autobuild/build.ps1 -Stage setup
+        run: |
+          $dest = "$env:GITHUB_WORKSPACE\windows\ASIOSDK2"
+          if (Test-Path $dest) { return }
+          $zip = "$env:TEMP\asiosdk.zip"
+          Invoke-WebRequest -Uri "https://download.steinberg.net/sdk_downloads/asiosdk_2.3.3_2019-06-14.zip" -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $env:TEMP -Force
+          Move-Item -Path "$env:TEMP\asiosdk_2.3.3_2019-06-14" -Destination $dest -Force
 
-      - name: Build and sign installer
+      - name: Build
         shell: pwsh
         env:
-          koordasio_buildversionstring: ${{ needs.prepare.outputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = $env:GITHUB_WORKSPACE
+          $qt = $env:QT_ROOT_DIR
+
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "$root\build", "$root\deploy", "$root\Output"
+          New-Item -ItemType Directory -Force -Path "$root\build\release\kdasioconfig", "$root\deploy\x86_64" | Out-Null
+
+          cmake -DCMAKE_PREFIX_PATH="$qt" -DCMAKE_BUILD_TYPE=Release `
+            -S "$root\src\kdasioconfig" -B "$root\build\release\kdasioconfig" -G "NMake Makefiles"
+          Push-Location "$root\build\release\kdasioconfig"
+          nmake
+          Pop-Location
+
+          cmake -S "$root\src" -B "$root\build\release\flexasio" -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$root\build\release\flexasio"
+
+          $deploy = "$root\deploy\x86_64"
+          Push-Location "$root\build\release\flexasio"
+          & "$qt\bin\windeployqt.exe" --release --no-compiler-runtime --dir $deploy `
+            --no-system-d3d-compiler --no-opengl-sw "$root\build\release\kdasioconfig\KoordASIOControl.exe"
+          Pop-Location
+
+          if ($env:VCToolsRedistDir) {
+            $crt = Get-ChildItem (Join-Path $env:VCToolsRedistDir 'x64') -Directory |
+              Where-Object { $_.Name -like 'Microsoft.VC*.CRT' } |
+              Sort-Object Name -Descending | Select-Object -First 1
+            if ($crt) { Copy-Item (Join-Path $crt.FullName '*.dll') -Destination $deploy -Force }
+          }
+
+          $bin = "$root\build\release\flexasio\install\bin"
+          Move-Item "$root\build\release\kdasioconfig\KoordASIOControl.exe" $deploy -Force
+          foreach ($f in @('KoordASIO.dll','portaudio.dll','ASIOTest.dll','sndfile.dll','FlexASIOTest.exe','PortAudioDevices.exe')) {
+            Move-Item (Join-Path $bin $f) $deploy -Force
+          }
+
+          Copy-Item "$root\windows\kdinstaller.iss" "$root\kdinstaller.iss" -Force
+          ISCC.exe "$root\kdinstaller.iss" "/FKoordASIO-$env:VERSION" "/DApplicationVersion=$env:VERSION"
+
+      - name: Sign installer
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
           WINDOWS_CODESIGN_CERT: ${{ secrets.WINDOWS_CODESIGN_CERT }}
           WINDOWS_CODESIGN_PWD: ${{ secrets.WINDOWS_CODESIGN_PWD }}
-        run: ./.github/autobuild/build.ps1 -Stage build
+        run: |
+          if (-not $env:WINDOWS_CODESIGN_CERT) {
+            Write-Output 'WINDOWS_CODESIGN_CERT not set; skipping code signing'
+            exit 0
+          }
+          [IO.File]::WriteAllBytes('C:\KoordOVCert.pfx', [Convert]::FromBase64String($env:WINDOWS_CODESIGN_CERT))
+          Set-Content -Path 'C:\KoordOVCertPwd' -Value $env:WINDOWS_CODESIGN_PWD -NoNewline
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          & $signtool.FullName sign /f C:\KoordOVCert.pfx /p (Get-Content C:\KoordOVCertPwd -Raw) `
+            /fd SHA256 /td SHA256 /tr http://timestamp.sectigo.com `
+            "$env:GITHUB_WORKSPACE\Output\KoordASIO-$env:VERSION.exe"
 
-      - name: Collect artifact name
-        id: artifacts
+      - name: Stage artifact
         shell: pwsh
-        env:
-          koordasio_buildversionstring: ${{ needs.prepare.outputs.version }}
-        run: ./.github/autobuild/build.ps1 -Stage get-artifacts
+        run: |
+          $src = "$env:GITHUB_WORKSPACE\Output\KoordASIO-${{ steps.version.outputs.version }}.exe"
+          $dst = "$env:GITHUB_WORKSPACE\deploy\${{ steps.version.outputs.artifact }}"
+          Move-Item $src $dst -Force
 
-      - name: Upload installer artifact
+      - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.artifacts.outputs.artifact_1 }}
-          path: deploy/${{ steps.artifacts.outputs.artifact_1 }}
+          name: ${{ steps.version.outputs.artifact }}
+          path: deploy/${{ steps.version.outputs.artifact }}
           if-no-files-found: error
 
       - name: Create draft release
-        if: needs.prepare.outputs.publish_to_release == 'true'
+        if: startsWith(github.ref, 'refs/tags/r')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.prepare.outputs.release_tag }}
-          name: ${{ needs.prepare.outputs.release_title }}
-          prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ steps.version.outputs.version }} (${{ github.ref_name }})
+          prerelease: ${{ !matches(github.ref_name, '^r[0-9]+_[0-9]+_[0-9]+$') }}
           draft: true
-          files: deploy/${{ steps.artifacts.outputs.artifact_1 }}
+          files: deploy/${{ steps.version.outputs.artifact }}
