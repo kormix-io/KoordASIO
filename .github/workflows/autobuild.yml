@@ -2,20 +2,20 @@ name: Auto-Build
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'r*'
-    branches:
-      - v2
-  pull_request:
-    branches:
-      - v2
+  # Push/PR autobuild disabled — run manually while iterating.
+  # push:
+  #   tags:
+  #     - 'r*'
+  # pull_request:
+  #   branches:
+  #     - v2
 
 permissions:
   contents: write
 
 env:
   QT_VERSION: '6.8.2'
+  ENABLE_SIGNING: 'false'
 
 jobs:
   build:
@@ -117,10 +117,12 @@ jobs:
           Copy-Item "$root\windows\kdinstaller.iss" "$root\kdinstaller.iss" -Force
 
       - name: Install dotnet sign tool
+        if: env.ENABLE_SIGNING == 'true'
         shell: pwsh
         run: dotnet tool install --global --prerelease sign
 
       - name: Sign deployed binaries (Azure Trusted Signing)
+        if: env.ENABLE_SIGNING == 'true'
         shell: pwsh
         env:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -144,6 +146,7 @@ jobs:
           ISCC.exe "$env:GITHUB_WORKSPACE\kdinstaller.iss" "/FKoordASIO-$env:VERSION" "/DApplicationVersion=$env:VERSION"
 
       - name: Sign installer (Azure Trusted Signing)
+        if: env.ENABLE_SIGNING == 'true'
         shell: pwsh
         env:
           VERSION: ${{ steps.version.outputs.version }}
