@@ -5,11 +5,15 @@
 #include <array>
 #include <filesystem>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <regex>
 #include <string>
+#include <semaphore>
+#include <span>
 #include <thread>
 #include <variant>
+#include <vector>
 
 namespace flexasio {
 
@@ -81,32 +85,44 @@ namespace flexasio {
 			~Watcher() noexcept(false);
 
 		private:
-			struct HandleCloser {
-				void operator()(HANDLE handle);
+			class ConfigDirectoryWatchOperation final {
+			public:
+				ConfigDirectoryWatchOperation(HANDLE directory, OVERLAPPED* overlapped, std::span<std::byte> fileNotifyInformationBuffer);
+				~ConfigDirectoryWatchOperation() noexcept(false);
+
+				ConfigDirectoryWatchOperation(const ConfigDirectoryWatchOperation&) = delete;
+				ConfigDirectoryWatchOperation& operator=(const ConfigDirectoryWatchOperation&) = delete;
+
+				void Cancel();
+
+				struct Aborted final {};
+				struct Overflow final {};
+				using Outcome = std::variant<Aborted, Overflow, std::span<const std::byte>>;
+				Outcome Await();
+
+			private:
+				const HANDLE directory;
+				OVERLAPPED* overlapped;
+				std::span<std::byte> fileNotifyInformationBuffer;
 			};
-			using UniqueHandle = std::unique_ptr<std::remove_pointer_t<HANDLE>, HandleCloser>;
 
-			struct OverlappedWithEvent {
-				OverlappedWithEvent();
-				~OverlappedWithEvent();
+			// We abuse exception handling to handle stop requests. This is a bit unorthodox, but
+			// it does make the code significantly simpler.
+			struct StopRequested final {};
+			void CheckStopRequested(std::chrono::milliseconds timeout);
 
-				OVERLAPPED overlapped = { 0 };
-			};
-
-			void StartWatching();
 			void RunThread();
-			void OnEvent();
-			void Debounce();
-			bool FillNotifyInformationBuffer();
-			bool FindConfigFileEvents();
+			void TriggerConfigFileEventThenWait(OVERLAPPED*, std::span<std::byte> fileNotifyInformationBuffer);
+			bool FileNotifyInformationContainsConfigFileEvents(std::span<const std::byte> fileNotifyInformationBuffer);
 			void OnConfigFileEvent();
 
 			const ConfigLoader& configLoader;
 			const std::function<void()> onConfigChange;
-			const UniqueHandle stopEvent;
-			const UniqueHandle directory;
-			OverlappedWithEvent overlapped;
-			alignas(DWORD) char fileNotifyInformationBuffer[64 * 1024];
+			
+			std::binary_semaphore stopSemaphore{0};
+			std::mutex directoryMutex;
+			HANDLE directory = INVALID_HANDLE_VALUE;
+
 			std::thread thread;
 		};
 

@@ -59,10 +59,7 @@ namespace flexasio {
 			GUID waveSubFormat;
 		};
 
-		struct OpenStreamResult {
-			Stream stream;
-			bool exclusive;
-		};
+		enum class StreamExclusivity { SHARED, EXCLUSIVE };
 
 		class PortAudioHandle {
 		public:
@@ -87,7 +84,7 @@ namespace flexasio {
 			PreparedState(const PreparedState&) = delete;
 			PreparedState(PreparedState&&) = delete;
 
-			bool IsExclusive() const { return openStreamResult.exclusive;  }
+			StreamExclusivity GetStreamExclusivity() const { return streamWithExclusivity.exclusivity;  }
 
 			bool IsChannelActive(bool isInput, long channel) const;
 
@@ -105,8 +102,8 @@ namespace flexasio {
 			{
 				Buffers(size_t bufferSetCount, size_t inputChannelCount, size_t outputChannelCount, size_t bufferSizeInFrames, size_t inputSampleSizeInBytes, size_t outputSampleSizeInBytes);
 				~Buffers();
-				uint8_t* GetInputBuffer(size_t bufferSetIndex, size_t channelIndex) { return buffers.data() + bufferSetIndex * GetBufferSetSizeInBytes() + channelIndex * GetInputBufferSizeInBytes(); }
-				uint8_t* GetOutputBuffer(size_t bufferSetIndex, size_t channelIndex) { return GetInputBuffer(bufferSetIndex, inputChannelCount) + channelIndex * GetOutputBufferSizeInBytes(); }
+				std::byte* GetInputBuffer(size_t bufferSetIndex, size_t channelIndex) { return buffers.data() + bufferSetIndex * GetBufferSetSizeInBytes() + channelIndex * GetInputBufferSizeInBytes(); }
+				std::byte* GetOutputBuffer(size_t bufferSetIndex, size_t channelIndex) { return GetInputBuffer(bufferSetIndex, inputChannelCount) + channelIndex * GetOutputBufferSizeInBytes(); }
 				size_t GetBufferSetSizeInBytes() const { return buffers.size() / bufferSetCount; }
 				size_t GetInputBufferSizeInBytes() const { if (buffers.empty()) return 0; return bufferSizeInFrames * inputSampleSizeInBytes; }
 				size_t GetOutputBufferSizeInBytes() const { if (buffers.empty()) return 0; return bufferSizeInFrames * outputSampleSizeInBytes; }
@@ -122,12 +119,20 @@ namespace flexasio {
 				// [ input channel 0 buffer 0 ] [ input channel 1 buffer 0 ] ... [ input channel N buffer 0 ] [ output channel 0 buffer 0 ] [ output channel 1 buffer 0 ] .. [ output channel N buffer 0 ]
 				// [ input channel 0 buffer 1 ] [ input channel 1 buffer 1 ] ... [ input channel N buffer 1 ] [ output channel 0 buffer 1 ] [ output channel 1 buffer 1 ] .. [ output channel N buffer 1 ]
 				// The reason why this is a giant blob is to slightly improve performance by (theroretically) improving memory locality.
-				std::vector<uint8_t> buffers;
+				std::vector<std::byte> buffers;
 			};
 
 			class RunningState {
 			public:
 				RunningState(PreparedState& preparedState);
+				~RunningState();
+
+				// Note: the reason why this is not done in the constructor is to allow `PreparedState::Start()`
+				// to properly set `PreparedState::runningState` before callbacks start flying. This is because
+				// the ASIO host application may decide to call GetSamplePosition() or OutputReady() as soon
+				// as bufferSwitch() is called without waiting for Start() to return - we don't want these calls
+				// to race with `PreparedState::Start()` constructing `PreparedState::runningState`.
+				void Start();
 
 				void GetSamplePosition(ASIOSamples* sPos, ASIOTimeStamp* tStamp) const;
 				void OutputReady();
@@ -142,35 +147,17 @@ namespace flexasio {
 					ASIOTimeStamp timestamp = { 0 };
 				};
 
-				class Registration {
-				public:
-					Registration(RunningState*& holder, RunningState& runningState) : holder(holder) {
-						holder = &runningState;
-					}
-					~Registration() { holder = nullptr; }
-
-				private:
-					RunningState*& holder;
-				};
-
-				void Register() { preparedState.runningState = this; }
-				void Unregister() { preparedState.runningState = nullptr; }
-
 				PreparedState& preparedState;
 				const bool host_supports_timeinfo;
-				const bool hostSupportsOutputReady;
-				State state = hostSupportsOutputReady ? State::PRIMING : State::PRIMED;
+				enum class OutputReadyState { NOT_READY, READY, STOPPING };
+				std::optional<std::atomic<OutputReadyState>> outputReadyState;
+				State state = outputReadyState.has_value() ? State::PRIMING : State::PRIMED;
 				// The index of the "unlocked" buffer (or "half-buffer", i.e. 0 or 1) that contains data not currently being processed by the ASIO host.
 				long driverBufferIndex = state == State::PRIMING ? 1 : 0;
 				std::atomic<SamplePosition> samplePosition;
 
-				std::mutex outputReadyMutex;
-				std::condition_variable outputReadyCondition;
-				bool outputReady = true;
-
 				Win32HighResolutionTimer win32HighResolutionTimer;
-				Registration registration{ preparedState.runningState, *this };
-				const ActiveStream activeStream;
+				ActiveStream activeStream;
 			};
 
 			static int StreamCallback(const void *input, void *output, unsigned long frameCount, const PaStreamCallbackTimeInfo *timeInfo, PaStreamCallbackFlags statusFlags, void *userData) throw();
@@ -187,14 +174,13 @@ namespace flexasio {
 			Buffers buffers;
 			const std::vector<ASIOBufferInfo> bufferInfos;
 
-			const OpenStreamResult openStreamResult;
+			struct StreamWithExclusivity final {
+				Stream stream;
+				StreamExclusivity exclusivity;
+			};
+			const StreamWithExclusivity streamWithExclusivity;
 
-			// RunningState will set runningState before ownedRunningState has finished constructing.
-			// This allows PreparedState to properly forward stream callbacks that might fire before RunningState construction is fully complete.
-			// (See https://github.com/dechamps/FlexASIO/issues/27)
-			// During steady-state operation, runningState just points to *ownedRunningState.
-			RunningState* runningState = nullptr;
-			std::optional<RunningState> ownedRunningState;
+			std::optional<RunningState> runningState;
 			ConfigLoader::Watcher configWatcher;
 		};
 
@@ -223,7 +209,9 @@ namespace flexasio {
 		long ComputeLatency(long latencyInFrames, bool output, size_t bufferSizeInFrames) const;
 		long ComputeLatencyFromStream(PaStream* stream, bool output, size_t bufferSizeInFrames) const;
 
-		OpenStreamResult OpenStream(bool inputEnabled, bool outputEnabled, double sampleRate, unsigned long framesPerBuffer, PaStreamCallback callback, void* callbackUserData);
+		template <typename Functor>
+		decltype(auto) WithStreamParameters(bool inputEnabled, bool outputEnabled, double sampleRate, PaTime suggestedLatency, Functor functor) const;
+		Stream OpenStream(const StreamParameters&, unsigned long framesPerBuffer, PaStreamCallback callback, void* callbackUserData) const;
 
 		const HWND windowHandle = nullptr;
 		const ConfigLoader configLoader;
