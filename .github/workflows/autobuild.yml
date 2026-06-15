@@ -38,6 +38,11 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "artifact=KoordASIO_${VERSION}.exe" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" =~ ^refs/tags/r[0-9]+_[0-9]+_[0-9]+$ ]]; then
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
           echo "Building KoordASIO $VERSION"
 
       - uses: ilammy/msvc-dev-cmd@v1
@@ -151,6 +156,6 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ steps.version.outputs.version }} (${{ github.ref_name }})
-          prerelease: ${{ !matches(github.ref_name, '^r[0-9]+_[0-9]+_[0-9]+$') }}
+          prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
           draft: true
           files: deploy/${{ steps.version.outputs.artifact }}
