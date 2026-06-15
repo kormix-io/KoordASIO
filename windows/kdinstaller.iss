@@ -7,9 +7,9 @@ AppVerName=KoordASIO
 AppVersion={#ApplicationVersion}
 VersionInfoVersion={#ApplicationVersion}
 AppPublisher=Koord.Live
-AppPublisherURL=https://github.com/koord-live/KoordASIO
-AppSupportURL=https://github.com/koord-live/KoordASIO/issues
-AppUpdatesURL=https://github.com/koord-live/KoordASIO/releases
+AppPublisherURL=https://github.com/kormix-io/KoordASIO
+AppSupportURL=https://github.com/kormix-io/KoordASIO/issues
+AppUpdatesURL=https://github.com/kormix-io/KoordASIO/releases
 AppContact=contact@koord.live
 WizardStyle=modern
 DefaultGroupName=KoordASIO
@@ -37,6 +37,8 @@ Name: "{group}\KoordASIO Control"; Filename: "{app}\KoordASIOControl.exe"; Worki
 Filename: "{app}\KoordASIOControl.exe"; Parameters: "-defaults"; Description: "Set KoordASIO defaults"; Flags: nowait
 ; also allow user to configure immediately after installation
 Filename: "{app}\KoordASIOControl.exe"; Description: "Run KoordASIO Control"; Flags: postinstall nowait skipifsilent
+; ensure COM/ASIO registration succeeds even if self-registration during copy failed
+Filename: "{sys}\regsvr32.exe"; Parameters: "/s ""{app}\KoordASIO.dll"""; StatusMsg: "Registering KoordASIO driver..."; Flags: runhidden
 
 ; install reg key to locate KoordASIOControl at runtime
 [Registry]

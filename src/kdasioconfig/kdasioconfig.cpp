@@ -2,6 +2,7 @@
 ** KoordASIO
 */
 #include <QFile>
+#include <QSaveFile>
 #include <QTextStream>
 #include <QDir>
 #include "kdasioconfig.h"
@@ -12,6 +13,7 @@
 #include <QTextBrowser>
 #include <QColor>
 #include <QDesktopServices>
+#include <sstream>
 
 KdASIOConfigBase::KdASIOConfigBase(QWidget *parent)
     : QMainWindow(parent)
@@ -40,6 +42,13 @@ KdASIOConfig::KdASIOConfig(QWidget *parent)
     connect(outputAudioSettButton, &QPushButton::pressed, this, &KdASIOConfig::outputAudioSettClicked);
     connect(bufferSizeSlider, &QSlider::valueChanged, this, &KdASIOConfig::bufferSizeChanged);
     connect(bufferSizeSlider, &QSlider::valueChanged, this, &KdASIOConfig::bufferSizeDisplayChange);
+
+    inputEnabledCheckBox = new QCheckBox(tr("Enable input"), this);
+    inputEnabledCheckBox->setChecked(true);
+    inputEnabledCheckBox->setStyleSheet("color: white;");
+    verticalLayout_3->insertWidget(1, inputEnabledCheckBox);
+    connect(inputEnabledCheckBox, &QCheckBox::checkStateChanged, this, &KdASIOConfig::inputEnabledChanged);
+
     // connect footer buttons
     connect(koordLiveButton, &QPushButton::pressed, this, &KdASIOConfig::koordLiveClicked);
     connect(githubButton, &QPushButton::pressed, this, &KdASIOConfig::githubClicked);
@@ -65,24 +74,22 @@ KdASIOConfig::KdASIOConfig(QWidget *parent)
     for (auto &deviceInfo: output_devices)
         outputDeviceBox->addItem(deviceInfo.description(), QVariant::fromValue(deviceInfo));
 
-    // parse .KoordASIO.toml
-    // FIXME - doesn't actually test that the selected devices are correct with current device list
-    std::ifstream ifs;
-    ifs.exceptions ( std::ifstream::failbit | std::ifstream::badbit );
-    try {
-        ifs.open(fullpath.toStdString(), std::ifstream::in);
-        toml::ParseResult pr = toml::parse(ifs);
+    // parse .KoordASIO.toml using QFile for Unicode path support on Windows
+    QFile configFile(fullpath);
+    if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug("Failed to open config file at %s", qPrintable(fullpath));
+        setDefaults();
+    } else {
+        const QByteArray configData = configFile.readAll();
+        configFile.close();
+        std::istringstream stream(configData.constData());
+        toml::ParseResult pr = toml::parse(stream);
         qDebug("Attempted to parse toml file...");
-        ifs.close();
         if (!pr.valid()) {
             setDefaults();
         } else {
-            setValuesFromToml(&ifs, &pr);
+            setValuesFromToml(&pr);
         }
-    }
-    catch (std::ifstream::failure e) {
-        qDebug("Failed to open file ...");
-        setDefaults();
     }
 
 }
@@ -109,7 +116,7 @@ void KdASIOConfig::updateOutputsList() {
     writeTomlFile();
 }
 
-void KdASIOConfig::setValuesFromToml(std::ifstream *ifs, toml::ParseResult *pr)
+void KdASIOConfig::setValuesFromToml(toml::ParseResult *pr)
 {
     qInfo("Parsed a valid TOML file.");
     // only recognise our accepted INPUT values - the others are hardcoded
@@ -117,8 +124,9 @@ void KdASIOConfig::setValuesFromToml(std::ifstream *ifs, toml::ParseResult *pr)
     // get bufferSize
     const toml::Value* bss = v.find("bufferSizeSamples");
     if (bss && bss->is<int>()) {
-        if (bss->as<int>() == 32||64||128||256||512||1024||2048) {
-            bufferSize = bss->as<int>();
+        const int bs = bss->as<int>();
+        if (bufferSizes.contains(bs)) {
+            bufferSize = bs;
         } else {
             bufferSize = 64;
         }
@@ -131,13 +139,23 @@ void KdASIOConfig::setValuesFromToml(std::ifstream *ifs, toml::ParseResult *pr)
     // get input stream stuff
     const toml::Value* input_dev = v.find("input.device");
     if (input_dev && input_dev->is<std::string>()) {
-        // if setCurrentText fails some sensible choice is made
-        inputDeviceBox->setCurrentText(QString::fromStdString(input_dev->as<std::string>()));
-        inputDeviceChanged(inputDeviceBox->currentIndex());
+        const auto device = input_dev->as<std::string>();
+        if (device.empty()) {
+            input_enabled = false;
+            inputEnabledCheckBox->setChecked(false);
+        } else {
+            input_enabled = true;
+            inputEnabledCheckBox->setChecked(true);
+            inputDeviceBox->setCurrentText(QString::fromStdString(device));
+            inputDeviceChanged(inputDeviceBox->currentIndex());
+        }
     } else {
+        input_enabled = true;
+        inputEnabledCheckBox->setChecked(true);
         inputDeviceBox->setCurrentText("Default Input Device");
         inputDeviceChanged(inputDeviceBox->currentIndex());
     }
+    updateInputControlsEnabled();
     const toml::Value* input_excl = v.find("input.wasapiExclusiveMode");
     if (input_excl && input_excl->is<bool>()) {
         exclusive_mode = input_excl->as<bool>();
@@ -166,10 +184,18 @@ void KdASIOConfig::setValuesFromToml(std::ifstream *ifs, toml::ParseResult *pr)
 
 void KdASIOConfig::setDefaults()
 {
+    setInstallDefaults(true, 32);
+}
+
+void KdASIOConfig::setInstallDefaults(bool exclusive, int bufferSizeSamples)
+{
     // set defaults
     qInfo("Setting defaults");
-    bufferSize = 32;
-    exclusive_mode = true;
+    bufferSize = bufferSizeSamples;
+    exclusive_mode = exclusive;
+    input_enabled = true;
+    inputEnabledCheckBox->setChecked(true);
+    updateInputControlsEnabled();
     // find system audio device defaults
     QAudioDevice inputInfo(QMediaDevices::defaultAudioInput());
     inputDeviceName = inputInfo.description();
@@ -190,34 +216,16 @@ void KdASIOConfig::setDefaults()
 void KdASIOConfig::writeTomlFile()
 {
     // REF: https://github.com/dechamps/FlexASIO/blob/master/CONFIGURATION.md
-    // Write MINIMAL config to .KoordASIO.toml, like this:
-    /*
-        backend = "Windows WASAPI"
-        bufferSizeSamples = bufferSize
-
-        [input]
-        device=inputDevice
-        suggestedLatencySeconds = 0.0
-        wasapiExclusiveMode = inputExclusiveMode
-
-        [output]
-        device=outputDevice
-        suggestedLatencySeconds = 0.0
-        wasapiExclusiveMode = outputExclusiveMode
-    */
-    QFile file(fullpath);
+    QSaveFile file(fullpath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
         return;
     QTextStream out(&file);
-    // need to explicitly set UTF-8 for non-ASCII character support
     out.setEncoding(QStringConverter::Utf8);
-    // out.setCodec("UTF-8");
-    //FIXME should really write to intermediate buffer, THEN to file - to make single write on file
     out << "backend = \"Windows WASAPI\"" << "\n"
         << "bufferSizeSamples = " << bufferSize << "\n"
         << "\n"
         << "[input]" << "\n"
-        << "device = \"" << inputDeviceName << "\"\n"
+        << "device = \"" << (input_enabled ? inputDeviceName : QString()) << "\"\n"
         << "suggestedLatencySeconds = 0.0" << "\n"
         << "wasapiExclusiveMode = " << (exclusive_mode ? "true" : "false") << "\n"
         << "\n"
@@ -225,8 +233,23 @@ void KdASIOConfig::writeTomlFile()
         << "device = \"" << outputDeviceName << "\"\n"
         << "suggestedLatencySeconds = 0.0" << "\n"
         << "wasapiExclusiveMode = " << (exclusive_mode ? "true" : "false") << "\n";
-    // qInfo("Just wrote toml file...");
+    file.commit();
+}
 
+void KdASIOConfig::inputEnabledChanged(int state)
+{
+    input_enabled = (state == Qt::Checked);
+    updateInputControlsEnabled();
+    writeTomlFile();
+}
+
+void KdASIOConfig::updateInputControlsEnabled()
+{
+    const bool enabled = input_enabled;
+    inputDeviceBox->setEnabled(enabled);
+    inputAudioSettButton->setEnabled(enabled);
+    inputDeviceLabel->setEnabled(enabled);
+    inputInfoLabel->setEnabled(enabled);
 }
 
 void KdASIOConfig::bufferSizeChanged(int idx)
@@ -341,10 +364,10 @@ void KdASIOConfig::koordLiveClicked()
 
 void KdASIOConfig::versionButtonClicked()
 {
-    QDesktopServices::openUrl(QUrl("https://github.com/koord-live/KoordASIO/releases", QUrl::TolerantMode));
+    QDesktopServices::openUrl(QUrl("https://github.com/kormix-io/KoordASIO/releases", QUrl::TolerantMode));
 }
 
 void KdASIOConfig::githubClicked()
 {
-    QDesktopServices::openUrl(QUrl("https://github.com/koord-live/KoordASIO", QUrl::TolerantMode));
+    QDesktopServices::openUrl(QUrl("https://github.com/kormix-io/KoordASIO", QUrl::TolerantMode));
 }

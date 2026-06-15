@@ -53,24 +53,54 @@
 
 #include "kdasioconfig.h"
 
+namespace {
+
+bool parseBufferSize(const QString& value, int& bufferSize)
+{
+    bool ok = false;
+    const int parsed = value.toInt(&ok);
+    if (!ok) return false;
+    const QList<int> allowed = {32, 64, 128, 256, 512, 1024, 2048};
+    if (!allowed.contains(parsed)) return false;
+    bufferSize = parsed;
+    return true;
+}
+
+}
+
 int main(int argc, char **argv)
 {
     SingleApplication app( argc, argv );
-//    QApplication app(argc, argv);
     app.setApplicationName("KoordASIO Control");
 
     KdASIOConfig audio;
 
-    // For installation: we need to set sensible defaults to make KoordASIO immediately loadable
-    //      -ds - run silent no-gui setDefaultMode - shared
-    //      -de - run silent no-gui setDefaultMode - exclusive
-    // VERY BASIC ARG-PARSING:
-    // IF there is one arg AND it is "-defaults" THEN app runs setDefaults() and exits
-//    qInfo() << "ARGV2" << argv[1];
-    if ( !QString("-defaults").compare ( argv[1] ) ) {
-        audio.setDefaults();
-        app.exit(0);
-        return 0;
+    if (argc >= 2) {
+        const QString arg = argv[1];
+        if (!arg.compare("-defaults") || !arg.compare("-de")) {
+            audio.setInstallDefaults(true);
+            return 0;
+        }
+        if (!arg.compare("-ds")) {
+            audio.setInstallDefaults(false);
+            return 0;
+        }
+        if (arg.startsWith("-buffer=")) {
+            int bufferSize = 32;
+            if (!parseBufferSize(arg.mid(8), bufferSize)) {
+                return 1;
+            }
+            audio.setInstallDefaults(true, bufferSize);
+            return 0;
+        }
+        if (!arg.compare("-exclusive")) {
+            audio.setInstallDefaults(true);
+            return 0;
+        }
+        if (!arg.compare("-shared")) {
+            audio.setInstallDefaults(false);
+            return 0;
+        }
     }
 
     // in normal mode - show GUI

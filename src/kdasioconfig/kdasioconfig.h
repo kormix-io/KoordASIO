@@ -52,8 +52,9 @@
 #define KDASIOCONFIG_H
 
 #include <QAudioDevice>
+#include <QCheckBox>
 #include <QMediaDevices>
-#include <QStringConverter> 
+#include <QStringConverter>
 #include <QMainWindow>
 #include <QObject>
 #include <QDir>
@@ -75,6 +76,8 @@ class KdASIOConfig : public KdASIOConfigBase
 
 public:
     explicit KdASIOConfig(QWidget *parent = nullptr);
+    void setDefaults();
+    void setInstallDefaults(bool exclusive, int bufferSizeSamples = 32);
 
 private:
     QAudioDevice m_inputDeviceInfo;
@@ -85,6 +88,8 @@ private:
     QAudioFormat m_settings;
     int bufferSize;
     bool exclusive_mode;
+    bool input_enabled;
+    QCheckBox *inputEnabledCheckBox;
     QString outputDeviceName;
     QString inputDeviceName;
     // QString fullpath = QDir::homePath() + "/.KoordASIO-builtin.toml";
@@ -94,9 +99,6 @@ private:
     QList<int> bufferSizes = { 32, 64, 128, 256, 512, 1024, 2048 };
     QProcess *mmcplProc;
 
-public slots:
-    void setDefaults();
-
 private slots:
     void bufferSizeChanged(int idx);
     void bufferSizeDisplayChange(int idx);
@@ -105,10 +107,12 @@ private slots:
     void sharedModeSet();
     void exclusiveModeSet();
     void writeTomlFile();
+    void inputEnabledChanged(int state);
+    void updateInputControlsEnabled();
     void inputDeviceChanged(int idx);
     void outputDeviceChanged(int idx);
 
-    void setValuesFromToml(std::ifstream *ifs, toml::ParseResult *pr);
+    void setValuesFromToml(toml::ParseResult *pr);
     void inputAudioSettClicked();
     void outputAudioSettClicked();
     void koordLiveClicked();

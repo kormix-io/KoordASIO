@@ -88,7 +88,7 @@ namespace flexasio {
 		}
 		
 		void OpenConfigurationDocs(HWND windowHandle) {
-			Execute(windowHandle, std::wstring(L"https://github.com/koord-live/KoordASIO/blob/") + ConvertFromUTF8(::dechamps_CMakeUtils_gitDescription) + L"/CONFIGURATION.md");
+			Execute(windowHandle, std::wstring(L"https://github.com/kormix-io/KoordASIO/blob/") + ConvertFromUTF8(::dechamps_CMakeUtils_gitDescription) + L"/CONFIGURATION.md");
 		}
 
 	}
