@@ -1,7 +1,7 @@
 # KoordASIO, a user-friendly universal ASIO driver
 
 **If you are looking for an installer, see the
-[GitHub releases page][releases], or install directly from the [Microsoft App Store][windowstore].**
+[GitHub releases page][releases].**
 
 ## Description
 
@@ -58,4 +58,3 @@ problems, please create an issue on [the Issues page][issues].
 [releases]: https://github.com/kormix-io/KoordASIO/releases
 [issues]: https://github.com/kormix-io/KoordASIO/issues
 [BACKENDS]: BACKENDS.md
-[windowstore]: https://apps.microsoft.com/store/detail/koordasio-universal-driver/XP9CSS6NZBDV21

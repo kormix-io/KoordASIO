@@ -12,10 +12,10 @@ enable_language("RC")
 
 find_package(Qt6 COMPONENTS Quick QuickControls2 Multimedia Widgets REQUIRED)
 
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../kdASIOVersion.txt" KOORDASIO_VERSION_FILE)
-string(REGEX MATCH "VERSION = ([0-9.]+)" _ "${KOORDASIO_VERSION_FILE}")
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../CMakeLists.txt" KOORDASIO_ROOT_CMAKE)
+string(REGEX MATCH "project\\(KoordASIO VERSION ([0-9.]+)" _ "${KOORDASIO_ROOT_CMAKE}")
 if(NOT CMAKE_MATCH_1)
-    message(FATAL_ERROR "Could not read VERSION from kdASIOVersion.txt")
+    message(FATAL_ERROR "Could not read VERSION from root CMakeLists.txt")
 endif()
 set(KOORDASIO_VERSION "${CMAKE_MATCH_1}")
 
