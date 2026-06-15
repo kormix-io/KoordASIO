@@ -42,7 +42,8 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "artifact=KoordASIO_${VERSION}.exe" >> "$GITHUB_OUTPUT"
-          if [[ "$GITHUB_REF" =~ ^refs/tags/r[0-9]+_[0-9]+_[0-9]+$ ]]; then
+          if [[ "$GITHUB_REF" =~ ^refs/tags/r[0-9]+_[0-9]+_[0-9]+$ ]] || \
+             [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.publish_release }}" == "true" ]]; then
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           else
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
