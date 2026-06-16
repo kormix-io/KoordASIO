@@ -16,6 +16,7 @@ public:
     TrayManager(ConfigModel *model, QWindow *window, QObject *parent = nullptr);
 
     void show();
+    void setEnabled(bool enabled);
 
 public slots:
     void showWindow();
@@ -26,6 +27,7 @@ private:
     QWindow *m_window = nullptr;
     QSystemTrayIcon m_tray;
     QFileSystemWatcher m_configWatcher;
+    bool m_enabled = true;
 };
 
 #endif

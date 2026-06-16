@@ -1,6 +1,22 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
+        <file>StyledComboBox.qml</file>
+        <file>StyledCheckBox.qml</file>
+        <file>ModeButton.qml</file>
+        <file>ModeImageButton.qml</file>
+        <file>IconButton.qml</file>
+        <file>BufferSizeDisplay.qml</file>
+        <file>BufferSizeSlider.qml</file>
         <file>mainicon.ico</file>
+        <file alias="images/logo.png">images/KoordASIO Logo.png</file>
+        <file alias="images/frame.png">images/Frame.png</file>
+        <file alias="images/config-btn.png">images/CONFIG BTN OFF.png</file>
+        <file alias="images/github.png">images/mark-github-24.png</file>
+        <file alias="images/shared-off.png">images/SHARED OFF BTN.png</file>
+        <file alias="images/shared-on.png">images/SHARED ON BTN.png</file>
+        <file alias="images/exclusive-off.png">images/EXCLUSIVE OFF BTN.png</file>
+        <file alias="images/exclusive-on.png">images/EXCLUSIVE ON BTN.png</file>
+        <file alias="images/fader-btn.png">images/Fader BTN.png</file>
     </qresource>
 </RCC>

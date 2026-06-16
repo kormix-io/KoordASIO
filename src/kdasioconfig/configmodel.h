@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QMediaDevices>
 #include <QProcess>
+#include <QSettings>
 #include <QStringList>
 
 #include "toml.h"
@@ -25,6 +26,7 @@ class ConfigModel : public QObject
     Q_PROPERTY(QString version READ version CONSTANT)
     Q_PROPERTY(QString configPath READ configPath CONSTANT)
     Q_PROPERTY(QString statusSummary READ statusSummary NOTIFY statusSummaryChanged)
+    Q_PROPERTY(bool systrayEnabled READ systrayEnabled WRITE setSystrayEnabled NOTIFY systrayEnabledChanged)
 
 public:
     explicit ConfigModel(QObject *parent = nullptr);
@@ -43,6 +45,7 @@ public:
     QString version() const { return m_version; }
     QString configPath() const { return m_configPath; }
     QString statusSummary() const;
+    bool systrayEnabled() const { return m_systrayEnabled; }
 
     void setInputDevice(const QString &name);
     void setOutputDevice(const QString &name);
@@ -51,6 +54,7 @@ public:
     void setOutputStereoEmulation(bool enabled);
     void setExclusiveMode(bool exclusive);
     void setBufferSizeIndex(int index);
+    void setSystrayEnabled(bool enabled);
 
     Q_INVOKABLE void load();
     Q_INVOKABLE void setDefaults();
@@ -72,6 +76,7 @@ signals:
     void exclusiveModeChanged();
     void bufferSizeChanged();
     void statusSummaryChanged();
+    void systrayEnabledChanged();
 
 private:
     void refreshDeviceLists();
@@ -97,6 +102,8 @@ private:
     bool m_inputStereoEmulation = false;
     bool m_outputStereoEmulation = false;
     bool m_loading = false;
+    bool m_systrayEnabled = true;
+    QSettings m_settings;
 };
 
 #endif

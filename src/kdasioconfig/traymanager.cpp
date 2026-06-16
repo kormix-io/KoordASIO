@@ -42,7 +42,19 @@ TrayManager::TrayManager(ConfigModel *model, QWindow *window, QObject *parent)
 
 void TrayManager::show()
 {
-    m_tray.show();
+    if (m_enabled)
+        m_tray.show();
+}
+
+void TrayManager::setEnabled(bool enabled)
+{
+    if (m_enabled == enabled)
+        return;
+    m_enabled = enabled;
+    if (enabled)
+        m_tray.show();
+    else
+        m_tray.hide();
 }
 
 void TrayManager::showWindow()

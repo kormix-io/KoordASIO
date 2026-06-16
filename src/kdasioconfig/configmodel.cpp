@@ -32,7 +32,9 @@ ConfigModel::ConfigModel(QObject *parent)
     , m_devices(new QMediaDevices(this))
     , m_configPath(QDir::homePath() + QStringLiteral("/.KoordASIO.toml"))
     , m_version(readAppVersion())
+    , m_settings(QStringLiteral("kormix"), QStringLiteral("KoordASIO"))
 {
+    m_systrayEnabled = m_settings.value(QStringLiteral("systrayEnabled"), true).toBool();
     connect(m_devices, &QMediaDevices::audioInputsChanged, this, [this]() {
         refreshDeviceLists();
         writeTomlFile();
@@ -289,6 +291,15 @@ void ConfigModel::setBufferSizeIndex(int index)
     m_bufferSizeIndex = index;
     emit bufferSizeChanged();
     writeTomlFile();
+}
+
+void ConfigModel::setSystrayEnabled(bool enabled)
+{
+    if (m_systrayEnabled == enabled)
+        return;
+    m_systrayEnabled = enabled;
+    m_settings.setValue(QStringLiteral("systrayEnabled"), enabled);
+    emit systrayEnabledChanged();
 }
 
 void ConfigModel::openInputSettings()
