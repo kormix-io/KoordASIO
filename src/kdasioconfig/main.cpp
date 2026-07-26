@@ -122,7 +122,11 @@ int main(int argc, char **argv)
         if (arg.startsWith(QStringLiteral("-screenshot="))) {
             screenshotPath = arg.mid(12);
         } else if (!arg.compare(QStringLiteral("-defaults")) || !arg.compare(QStringLiteral("-de"))) {
-            configModel.setInstallDefaults(true);
+            // Seed a config, don't impose one: the installer runs this on every
+            // install including upgrades, so overwriting unconditionally threw
+            // away the device, mode and buffer the user had chosen.
+            if (!configModel.hasStoredConfig())
+                configModel.setInstallDefaults(true);
             return 0;
         } else if (!arg.compare(QStringLiteral("-ds"))) {
             configModel.setInstallDefaults(false);

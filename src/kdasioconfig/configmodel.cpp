@@ -174,6 +174,20 @@ void ConfigModel::applyTomlValues(const toml::Value &v)
         m_exclusiveMode = outputExcl->as<bool>();
 }
 
+bool ConfigModel::hasStoredConfig() const
+{
+    QFile configFile(m_configPath);
+    if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text))
+        return false;
+    const QByteArray configData = configFile.readAll();
+    configFile.close();
+    if (configData.isEmpty())
+        return false;
+
+    std::istringstream stream(configData.constData());
+    return toml::parse(stream).valid();
+}
+
 void ConfigModel::setDefaults()
 {
     setInstallDefaults(true, 32);

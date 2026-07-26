@@ -57,6 +57,7 @@ public:
     void setSystrayEnabled(bool enabled);
 
     Q_INVOKABLE void load();
+    Q_INVOKABLE bool hasStoredConfig() const;
     Q_INVOKABLE void setDefaults();
     Q_INVOKABLE void setInstallDefaults(bool exclusive, int bufferSizeSamples = 32);
     Q_INVOKABLE void openInputSettings();

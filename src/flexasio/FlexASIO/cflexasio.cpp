@@ -58,7 +58,7 @@ namespace flexasio {
 			}
 			void getDriverName(char* name) throw() final {
 				Enter("getDriverName()", [&] {
-					strcpy_s(name, 32, "FlexASIO");
+					strcpy_s(name, 32, "KoordASIO");
 				});
 			}
 			long getDriverVersion() throw() final {
