@@ -29,15 +29,21 @@ operation).
 
 ## Requirements
 
- - Windows Vista or later
- - Compatible 64-bit ASIO Host Applications
+ - 64-bit Windows (Vista or later)
+ - Any compatible ASIO host application, 32-bit or 64-bit
 
 ## Usage
 
-After running the [installer][releases], KoordASIO should appear in the ASIO
+After running the [installer][download], KoordASIO should appear in the ASIO
 driver list of any ASIO Host Application (e.g. Ableton, Cubase, Reaper). The Control
 GUI (KoordASIOControl.exe) can be launched at any time by clicking on the "ASIO Setup"
 button in your host software, or as usual via the Windows launcher.
+
+The installer contains both a 32-bit and a 64-bit driver and registers both, so
+hosts of either architecture — including older 32-bit versions of Ableton Live
+and Reaper, and 32-bit plugin bridges — find KoordASIO without you having to
+pick a build. The control panel itself is 64-bit, which is why 64-bit Windows is
+required.
 
 The installer sets up a working low-latency configuration straight away:
 
