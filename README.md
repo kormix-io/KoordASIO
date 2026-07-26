@@ -5,8 +5,8 @@
 Run the installer and KoordASIO appears in the ASIO device list of any host
 application. No account, no configuration files, nothing else to install.
 
-Older versions and release notes are on the [releases page][releases], and
-there is a [project page][site] with a short overview.
+There is a [project page][site] with a short overview, and older versions and
+release notes are on the [releases page][releases].
 
 > **Note:** KoordASIO is no longer distributed through the Microsoft Store.
 > The installer above is the only supported download.
@@ -19,7 +19,7 @@ with its own drivers, or where you need features that aren't available with your
 bundled ASIO drivers. KoordASIO is a derivative of [FlexASIO][] that focuses on
 WASAPI and user convenience.
 
-![KoordASIOScreenshot1a](https://user-images.githubusercontent.com/584572/184341896-1544a755-ebed-466f-b61e-e1d82c4530af.png)
+![The KoordASIO Control window](docs/screenshot.png)
 
 KoordASIO adds an intuitive Control GUI that gives users an easy way to configure
 low-latency WASAPI operation without editing config files. KoordASIO focuses on
