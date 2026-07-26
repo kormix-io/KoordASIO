@@ -63,6 +63,7 @@ public:
     Q_INVOKABLE void openOutputSettings();
     Q_INVOKABLE void openGitHub();
     Q_INVOKABLE void openReleases();
+    Q_INVOKABLE void openWebsite();
     Q_INVOKABLE void reloadFromFile();
 
 signals:

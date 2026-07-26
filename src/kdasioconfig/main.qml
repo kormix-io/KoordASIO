@@ -159,6 +159,11 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         model: config.inputDevices
                         enabled: config.inputEnabled
+                        ToolTip.visible: hovered && !popup.visible
+                        ToolTip.delay: 400
+                        ToolTip.text: config.inputEnabled
+                            ? "Recording device KoordASIO captures from"
+                            : "Input is switched off in Settings"
                         onActivated: config.inputDevice = config.inputDevices[currentIndex]
                         Component.onCompleted: syncInputDevice()
                         Connections {
@@ -193,6 +198,9 @@ ApplicationWindow {
                         id: outputDeviceCombo
                         Layout.fillWidth: true
                         model: config.outputDevices
+                        ToolTip.visible: hovered && !popup.visible
+                        ToolTip.delay: 400
+                        ToolTip.text: "Playback device KoordASIO sends audio to"
                         onActivated: config.outputDevice = config.outputDevices[currentIndex]
                         Component.onCompleted: syncOutputDevice()
                         Connections {
@@ -231,6 +239,9 @@ ApplicationWindow {
                         offSource: "qrc:/images/shared-off.png"
                         onSource: "qrc:/images/shared-on.png"
                         active: !config.exclusiveMode
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 400
+                        ToolTip.text: "Shared: other apps can play through this device at the same time"
                         onClicked: config.exclusiveMode = false
                     }
 
@@ -242,6 +253,9 @@ ApplicationWindow {
                         offSource: "qrc:/images/exclusive-off.png"
                         onSource: "qrc:/images/exclusive-on.png"
                         active: config.exclusiveMode
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 400
+                        ToolTip.text: "Exclusive: KoordASIO takes sole use of the device for lowest latency"
                         onClicked: config.exclusiveMode = true
                     }
                 }
@@ -268,6 +282,9 @@ ApplicationWindow {
                         to: root.bufferSteps
                         stepSize: 1
                         snapMode: Slider.SnapAlways
+                        ToolTip.visible: hovered || pressed
+                        ToolTip.delay: pressed ? 0 : 400
+                        ToolTip.text: config.bufferSize + " samples — lower is less latency, higher is more robust"
                         value: config.bufferSizeIndex
                         onMoved: config.bufferSizeIndex = Math.round(value)
                         onPressedChanged: if (!pressed) config.bufferSizeIndex = Math.round(value)
@@ -321,8 +338,40 @@ ApplicationWindow {
                     iconSource: "qrc:/images/github.png"
                     Layout.alignment: Qt.AlignVCenter
                     ToolTip.visible: hovered
+                    ToolTip.delay: 400
                     ToolTip.text: "GitHub repository"
                     onClicked: config.openGitHub()
+                }
+            }
+
+            // Centred on the window rather than placed in the row above, so it
+            // sits mid-footer regardless of how wide the version string is.
+            Button {
+                id: siteButton
+                anchors.centerIn: parent
+                flat: true
+                topPadding: 2
+                bottomPadding: 2
+                leftPadding: 7
+                rightPadding: 7
+                ToolTip.visible: hovered
+                ToolTip.delay: 400
+                ToolTip.text: "Open the KoordASIO website"
+                onClicked: config.openWebsite()
+
+                background: Rectangle {
+                    color: siteButton.down ? "#171819" : (siteButton.hovered ? "#252729" : "transparent")
+                    border.color: siteButton.hovered ? "#4a4f55" : "transparent"
+                    border.width: 1
+                    radius: 3
+                }
+
+                contentItem: Text {
+                    text: "koordasio.github.io"
+                    color: siteButton.hovered ? "#FF9B12" : clrMuted
+                    font.pixelSize: 11
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                 }
             }
         }
