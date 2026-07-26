@@ -346,35 +346,16 @@ ApplicationWindow {
 
             // Centred on the window rather than placed in the row above, so it
             // sits mid-footer regardless of how wide the version string is.
-            Button {
-                id: siteButton
+            IconButton {
                 anchors.centerIn: parent
-                flat: true
-                topPadding: 2
-                bottomPadding: 2
-                leftPadding: 7
-                rightPadding: 7
+                implicitWidth: 24
+                implicitHeight: 24
+                iconSize: 18
+                iconSource: "qrc:/images/web.png"
                 ToolTip.visible: hovered
                 ToolTip.delay: 400
-                // The URL is too long to sit in the footer at this window width,
-                // so it lives here and the button just reads "Website".
                 ToolTip.text: "kormix-io.github.io/KoordASIO"
                 onClicked: config.openWebsite()
-
-                background: Rectangle {
-                    color: siteButton.down ? "#171819" : (siteButton.hovered ? "#252729" : "transparent")
-                    border.color: siteButton.hovered ? "#4a4f55" : "transparent"
-                    border.width: 1
-                    radius: 3
-                }
-
-                contentItem: Text {
-                    text: "Website"
-                    color: siteButton.hovered ? "#FF9B12" : clrMuted
-                    font.pixelSize: 11
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
             }
         }
     }

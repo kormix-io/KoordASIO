@@ -185,7 +185,16 @@ jobs:
         shell: bash
         env:
           VERSION_TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
+          # A hand-written summary beats a commit dump for anyone reading the
+          # release page, so prefer one when this version has it.
+          if [ -f "release-notes/${VERSION}.md" ]; then
+            cp "release-notes/${VERSION}.md" release_notes.md
+            echo "Using curated release-notes/${VERSION}.md"
+            exit 0
+          fi
+
           PREV_TAG=""
           while IFS= read -r tag; do
             if [ "$tag" != "$VERSION_TAG" ]; then
