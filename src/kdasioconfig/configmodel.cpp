@@ -359,5 +359,5 @@ void ConfigModel::openReleases()
 
 void ConfigModel::openWebsite()
 {
-    QDesktopServices::openUrl(QUrl(QStringLiteral("https://koordasio.github.io")));
+    QDesktopServices::openUrl(QUrl(QStringLiteral("https://kormix-io.github.io/KoordASIO/")));
 }

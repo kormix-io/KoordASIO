@@ -73,6 +73,6 @@ problems, please create an issue on [the Issues page][issues].
 [FlexASIO]: https://github.com/dechamps/FlexASIO
 [download]: https://github.com/kormix-io/KoordASIO/releases/latest/download/KoordASIO-Setup.exe
 [releases]: https://github.com/kormix-io/KoordASIO/releases
-[site]: https://koordasio.github.io
+[site]: https://kormix-io.github.io/KoordASIO/
 [issues]: https://github.com/kormix-io/KoordASIO/issues
 [BACKENDS]: BACKENDS.md

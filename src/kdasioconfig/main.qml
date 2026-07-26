@@ -356,7 +356,9 @@ ApplicationWindow {
                 rightPadding: 7
                 ToolTip.visible: hovered
                 ToolTip.delay: 400
-                ToolTip.text: "Open the KoordASIO website"
+                // The URL is too long to sit in the footer at this window width,
+                // so it lives here and the button just reads "Website".
+                ToolTip.text: "kormix-io.github.io/KoordASIO"
                 onClicked: config.openWebsite()
 
                 background: Rectangle {
@@ -367,7 +369,7 @@ ApplicationWindow {
                 }
 
                 contentItem: Text {
-                    text: "koordasio.github.io"
+                    text: "Website"
                     color: siteButton.hovered ? "#FF9B12" : clrMuted
                     font.pixelSize: 11
                     horizontalAlignment: Text.AlignHCenter

@@ -75,8 +75,26 @@ if ($Deploy) {
 }
 
 if ($Run) {
-    Write-Host '==> launching'
-    Start-Process $target
+    # A process started over SSH runs in session 0, whose desktop nobody can see.
+    # Register the launch as an /IT task so the window opens in the logged-on
+    # console session, where it can actually be looked at.
+    # Cmdlets rather than schtasks.exe: no cmd quoting to get wrong, and no
+    # localised error text to trip over on a non-English box.
+    Write-Host '==> launching in the console session'
+    $task = 'koordasio-launch'
+    Unregister-ScheduledTask -TaskName $task -Confirm:$false -ErrorAction SilentlyContinue
+    $action = New-ScheduledTaskAction -Execute $target
+    $principal = New-ScheduledTaskPrincipal `
+        -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive
+    Register-ScheduledTask -TaskName $task -Action $action -Principal $principal -Force | Out-Null
+    Start-ScheduledTask -TaskName $task
+    Start-Sleep -Seconds 3
+    $proc = Get-Process KoordASIOControl -ErrorAction SilentlyContinue
+    if ($proc) {
+        Write-Host "    running as PID $($proc.Id) in session $($proc.SessionId) (0 would be invisible)"
+    } else {
+        Write-Host '    WARNING: process not found - is anyone logged on at the console?'
+    }
 }
 
 Write-Host 'OK'
