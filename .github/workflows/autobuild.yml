@@ -223,3 +223,14 @@ jobs:
           files: |
             deploy/${{ steps.version.outputs.artifact }}
             deploy/KoordASIO-Setup.exe
+
+      # action-gh-release only writes the body when it creates the release, so a
+      # re-run against an existing draft keeps the changelog of the first build.
+      - name: Sync release notes
+        if: >-
+          startsWith(github.ref, 'refs/tags/r') ||
+          (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "${{ steps.version.outputs.tag }}" --notes-file release_notes.md
