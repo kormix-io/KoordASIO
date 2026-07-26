@@ -67,135 +67,71 @@ ApplicationWindow {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 72
+            Layout.preferredHeight: 86
             color: clrBg
 
             RowLayout {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 16
+                anchors.bottomMargin: 14
                 anchors.leftMargin: 16
                 anchors.rightMargin: 12
                 spacing: 12
 
-                Item {
-                    Layout.preferredWidth: 180
-                    Layout.preferredHeight: 40
+                ColumnLayout {
+                    spacing: 3
 
                     Image {
-                        anchors.bottom: parent.bottom
-                        anchors.horizontalCenter: parent.horizontalCenter
                         source: "qrc:/images/logo.png"
                         fillMode: Image.PreserveAspectFit
-                        width: 180
-                        height: 40
+                        Layout.preferredWidth: 180
+                        Layout.preferredHeight: 19
+                        // Source is 692x72; decode at 2x the drawn size and mipmap
+                        // so the downscale stays crisp instead of aliasing.
+                        sourceSize.width: 360
+                        mipmap: true
+                        smooth: true
+                    }
+
+                    Label {
+                        text: "universal ASIO driver"
+                        color: clrMuted
+                        font.pixelSize: 12
+                        font.letterSpacing: 0.4
+                        Layout.leftMargin: 2
                     }
                 }
 
                 Item { Layout.fillWidth: true }
 
-                Item {
+                Button {
+                    id: settingsButton
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
+                    Layout.alignment: Qt.AlignVCenter
+                    flat: true
+                    padding: 0
+                    onClicked: settingsPopup.opened ? settingsPopup.close() : settingsPopup.open()
+                    ToolTip.visible: hovered
+                    ToolTip.text: "Settings"
 
-                    Button {
-                        id: settingsButton
-                        anchors.bottom: parent.bottom
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: 40
-                        height: 40
-                        flat: true
-                        topPadding: 0
-                        bottomPadding: 0
-                        leftPadding: 0
-                        rightPadding: 0
-                        onClicked: settingsPopup.open()
-                        background: Item {}
-                        contentItem: Item {
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: 11
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: 24
-                            height: 18
-                            Rectangle { width: 24; height: 3; radius: 1.5; color: clrText; anchors.horizontalCenter: parent.horizontalCenter; y: 0 }
-                            Rectangle { width: 24; height: 3; radius: 1.5; color: clrText; anchors.horizontalCenter: parent.horizontalCenter; y: 7.5 }
-                            Rectangle { width: 24; height: 3; radius: 1.5; color: clrText; anchors.horizontalCenter: parent.horizontalCenter; y: 15 }
+                    background: Rectangle {
+                        color: settingsButton.down ? "#171819"
+                             : (settingsButton.hovered ? "#252729" : "transparent")
+                        radius: 4
+                    }
+
+                    contentItem: Item {
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 4
+                            Repeater {
+                                model: 3
+                                Rectangle { width: 24; height: 3; radius: 1.5; color: clrText }
+                            }
                         }
                     }
-                }
-            }
-        }
-
-        Popup {
-            id: settingsPopup
-            parent: Overlay.overlay
-            width: 260
-            modal: true
-            focus: true
-            padding: 8
-
-            x: {
-                const pos = settingsButton.mapToItem(parent, 0, 0)
-                return Math.max(8, pos.x + settingsButton.width - width)
-            }
-            y: {
-                const pos = settingsButton.mapToItem(parent, 0, 0)
-                return pos.y + settingsButton.height + 4
-            }
-
-            background: Rectangle {
-                color: clrBg
-                border.color: clrSectionBorder
-                border.width: 1
-                radius: 6
-            }
-
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 4
-
-                Label {
-                    text: "Settings"
-                    color: clrMuted
-                    font.bold: true
-                    font.pixelSize: 11
-                    Layout.leftMargin: 4
-                }
-
-                StyledCheckBox {
-                    text: "Input audio"
-                    checked: config.inputEnabled
-                    Layout.fillWidth: true
-                    onToggled: config.inputEnabled = checked
-                }
-
-                StyledCheckBox {
-                    text: "Input mono \u2192 stereo"
-                    checked: config.inputStereoEmulation
-                    enabled: config.inputEnabled
-                    Layout.fillWidth: true
-                    onToggled: config.inputStereoEmulation = checked
-                }
-
-                StyledCheckBox {
-                    text: "Output mono \u2192 stereo"
-                    checked: config.outputStereoEmulation
-                    Layout.fillWidth: true
-                    onToggled: config.outputStereoEmulation = checked
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 1
-                    color: clrSectionBorder
-                }
-
-                StyledCheckBox {
-                    text: "System tray icon"
-                    checked: config.systrayEnabled
-                    Layout.fillWidth: true
-                    onToggled: config.systrayEnabled = checked
                 }
             }
         }
@@ -311,12 +247,12 @@ ApplicationWindow {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 15
+                    spacing: 12
 
                     BufferSizeDisplay {
-                        Layout.preferredWidth: 56
-                        Layout.preferredHeight: 50
-                        Layout.maximumWidth: 56
+                        Layout.preferredWidth: 34
+                        Layout.preferredHeight: 30
+                        Layout.maximumWidth: 34
                         value: config.bufferSize
                     }
 
@@ -326,7 +262,7 @@ ApplicationWindow {
                         from: 0
                         to: root.bufferSteps
                         stepSize: 1
-                        snapMode: Slider.SnapOnRelease
+                        snapMode: Slider.SnapAlways
                         value: config.bufferSizeIndex
                         onMoved: config.bufferSizeIndex = Math.round(value)
                         onPressedChanged: if (!pressed) config.bufferSizeIndex = Math.round(value)
@@ -353,12 +289,22 @@ ApplicationWindow {
                 anchors.fill: parent
                 anchors.leftMargin: 10
                 anchors.rightMargin: 10
+                spacing: 8
 
                 Image {
                     source: "qrc:/images/frame.png"
                     fillMode: Image.PreserveAspectFit
-                    Layout.preferredHeight: 9
+                    Layout.preferredHeight: 11
                     Layout.preferredWidth: 40
+                    sourceSize.width: 80
+                    mipmap: true
+                    smooth: true
+                }
+
+                Label {
+                    text: "v" + config.version
+                    color: clrMuted
+                    font.pixelSize: 11
                 }
 
                 Item { Layout.fillWidth: true }
@@ -372,6 +318,83 @@ ApplicationWindow {
                     ToolTip.text: "GitHub repository"
                     onClicked: config.openGitHub()
                 }
+            }
+        }
+    }
+
+    Popup {
+        id: settingsPopup
+        parent: Overlay.overlay
+        width: 260
+        modal: true
+        focus: true
+        padding: 10
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        // Anchor to the hamburger each time it opens. Bindings evaluated at
+        // construction resolve before the header has been laid out.
+        onAboutToShow: {
+            const pos = settingsButton.mapToItem(settingsPopup.parent, 0, 0)
+            x = Math.max(8, pos.x + settingsButton.width - width)
+            y = pos.y + settingsButton.height + 6
+        }
+
+        background: Rectangle {
+            color: clrBg
+            border.color: clrSectionBorder
+            border.width: 1
+            radius: 6
+        }
+
+        // Must be the contentItem, not an anchors.fill child: Popup derives its
+        // height from contentItem's implicit size, and anchoring leaves that at 0.
+        contentItem: ColumnLayout {
+            spacing: 6
+
+            Label {
+                text: "SETTINGS"
+                color: clrMuted
+                font.bold: true
+                font.pixelSize: 11
+                Layout.leftMargin: 2
+                Layout.bottomMargin: 2
+            }
+
+            StyledCheckBox {
+                text: "Input audio"
+                checked: config.inputEnabled
+                Layout.fillWidth: true
+                onToggled: config.inputEnabled = checked
+            }
+
+            StyledCheckBox {
+                text: "Input mono → stereo"
+                checked: config.inputStereoEmulation
+                enabled: config.inputEnabled
+                Layout.fillWidth: true
+                onToggled: config.inputStereoEmulation = checked
+            }
+
+            StyledCheckBox {
+                text: "Output mono → stereo"
+                checked: config.outputStereoEmulation
+                Layout.fillWidth: true
+                onToggled: config.outputStereoEmulation = checked
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                Layout.topMargin: 2
+                Layout.bottomMargin: 2
+                color: clrSectionBorder
+            }
+
+            StyledCheckBox {
+                text: "System tray icon"
+                checked: config.systrayEnabled
+                Layout.fillWidth: true
+                onToggled: config.systrayEnabled = checked
             }
         }
     }

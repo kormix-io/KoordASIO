@@ -2,13 +2,13 @@ import QtQuick
 
 Rectangle {
     id: root
-    width: 56
-    height: 50
+    width: 34
+    height: 30
 
     property int value: 0
 
-    radius: 4
-    border.width: 2
+    radius: 3
+    border.width: 1
     border.color: "#17191A"
     clip: true
 
@@ -20,11 +20,11 @@ Rectangle {
 
     Text {
         anchors.fill: parent
-        anchors.rightMargin: 5
-        anchors.leftMargin: 4
+        anchors.rightMargin: 3
+        anchors.leftMargin: 2
         text: root.value
         color: "#FF9B12"
-        font.pixelSize: value >= 1000 ? 16 : (value >= 100 ? 18 : 21)
+        font.pixelSize: value >= 1000 ? 11 : (value >= 100 ? 12 : 14)
         font.bold: true
         font.family: "Consolas"
         horizontalAlignment: Text.AlignRight

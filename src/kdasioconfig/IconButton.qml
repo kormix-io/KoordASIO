@@ -23,6 +23,11 @@ Button {
         anchors.centerIn: parent
         width: control.iconSize
         height: control.iconSize
+        // Sources are 96-112px square drawn at ~18-22px; decode at 2x and
+        // mipmap so the downscale doesn't alias.
+        sourceSize.width: control.iconSize * 2
+        mipmap: true
+        smooth: true
         opacity: control.enabled ? 1.0 : 0.4
     }
 }

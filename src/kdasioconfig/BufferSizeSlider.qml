@@ -3,9 +3,9 @@ import QtQuick.Controls
 
 Slider {
     id: control
-    readonly property real handleWidth: 30
-    readonly property real handleHeight: 55
-    readonly property real grooveHeight: 18
+    readonly property real handleWidth: 18
+    readonly property real handleHeight: 33
+    readonly property real grooveHeight: 11
     readonly property color grooveGray: "#2a2c2e"
     readonly property real handleX: control.visualPosition * Math.max(0, control.availableWidth - handleWidth)
     readonly property real orangeWidth: Math.max(0, handleX)
@@ -23,7 +23,7 @@ Slider {
 
         Rectangle {
             anchors.fill: parent
-            radius: 5
+            radius: grooveHeight / 2
             color: grooveGray
         }
 
@@ -31,7 +31,7 @@ Slider {
             x: 0
             width: orangeWidth
             height: grooveHeight
-            radius: 5
+            radius: grooveHeight / 2
             visible: width > 0
 
             gradient: Gradient {
@@ -45,7 +45,7 @@ Slider {
             x: grayRightX
             width: grayRightWidth
             height: grooveHeight
-            radius: 5
+            radius: grooveHeight / 2
             color: grooveGray
             visible: width > 0
         }
@@ -64,6 +64,9 @@ Slider {
             anchors.centerIn: parent
             width: handleWidth
             height: handleHeight
+            sourceSize.width: handleWidth * 2
+            mipmap: true
+            smooth: true
         }
     }
 }

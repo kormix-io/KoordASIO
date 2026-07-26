@@ -1,6 +1,7 @@
 #include <QColor>
 #include <QDateTime>
 #include <QFile>
+#include <QIcon>
 #include <QImage>
 #include <QApplication>
 #include <QPalette>
@@ -107,6 +108,8 @@ int main(int argc, char **argv)
         logLine(type, msg, context);
     });
     app.setApplicationName(QStringLiteral("KoordASIO Control"));
+    // Titlebar/taskbar icon: the .rc only covers the exe as seen by Explorer.
+    app.setWindowIcon(QIcon(QStringLiteral(":/mainicon.ico")));
     app.setQuitOnLastWindowClosed(false);
     QQuickStyle::setStyle(QStringLiteral("Fusion"));
     applyDarkPalette(app);
