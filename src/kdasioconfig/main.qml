@@ -339,6 +339,10 @@ ApplicationWindow {
             y = pos.y + settingsButton.height + 6
         }
 
+        // Size goes in the log because a zero content height is exactly how this
+        // popup previously failed, and it looks identical to "nothing happened".
+        onOpened: console.info("settings popup opened: " + width + "x" + height)
+
         background: Rectangle {
             color: clrBg
             border.color: clrSectionBorder
