@@ -5,11 +5,13 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: root
     width: 378
-    height: 530
     minimumWidth: 378
     maximumWidth: 420
-    minimumHeight: 530
-    maximumHeight: 530
+    // Derived, not hardcoded: a fixed height smaller than the layout needs
+    // silently clips the footer, and one larger leaves a dead gap above it.
+    height: mainColumn.implicitHeight
+    minimumHeight: mainColumn.implicitHeight
+    maximumHeight: mainColumn.implicitHeight
     visible: true
     title: "KoordASIO Control"
     color: clrBg
@@ -62,19 +64,20 @@ ApplicationWindow {
     }
 
     ColumnLayout {
+        id: mainColumn
         anchors.fill: parent
         spacing: 0
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 86
+            Layout.preferredHeight: 62
             color: clrBg
 
             RowLayout {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 14
+                anchors.bottomMargin: 10
                 anchors.leftMargin: 16
                 anchors.rightMargin: 12
                 spacing: 12
@@ -138,7 +141,6 @@ ApplicationWindow {
 
         ColumnLayout {
             Layout.fillWidth: true
-            Layout.fillHeight: true
             Layout.margins: 16
             spacing: 20
 
@@ -277,12 +279,11 @@ ApplicationWindow {
                 }
             }
 
-            Item { Layout.fillHeight: true }
         }
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 30
+            Layout.preferredHeight: 34
             color: clrBg
 
             RowLayout {
@@ -301,19 +302,21 @@ ApplicationWindow {
                     smooth: true
                 }
 
+                Item { Layout.fillWidth: true }
+
                 Label {
                     text: "v" + config.version
                     color: clrMuted
                     font.pixelSize: 11
+                    Layout.alignment: Qt.AlignVCenter
                 }
-
-                Item { Layout.fillWidth: true }
 
                 IconButton {
                     implicitWidth: 24
                     implicitHeight: 24
                     iconSize: 18
                     iconSource: "qrc:/images/github.png"
+                    Layout.alignment: Qt.AlignVCenter
                     ToolTip.visible: hovered
                     ToolTip.text: "GitHub repository"
                     onClicked: config.openGitHub()

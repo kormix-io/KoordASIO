@@ -93,6 +93,7 @@ private:
     QStringList m_outputDevices;
     QString m_configPath;
     QString m_version;
+    QByteArray m_lastWritten;
     QString m_inputAudioSettingsPath = QStringLiteral("mmsys.cpl,,1");
     QString m_outputAudioSettingsPath = QStringLiteral("mmsys.cpl");
     QList<int> m_bufferSizes = {32, 64, 128, 256, 512, 1024, 2048};

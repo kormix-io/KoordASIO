@@ -134,7 +134,13 @@ void ConfigModel::applyTomlValues(const toml::Value &v)
     if (inputDev && inputDev->is<std::string>()) {
         const QString device = QString::fromStdString(inputDev->as<std::string>());
         m_inputEnabled = !device.isEmpty();
-        m_inputDeviceName = m_inputEnabled ? device : QString();
+        // An empty device means input is off, not that there is no device to go
+        // back to. Keep whatever we already had, or fall back to the system
+        // default, so switching input back on always has something to select.
+        if (m_inputEnabled)
+            m_inputDeviceName = device;
+        else if (m_inputDeviceName.isEmpty())
+            m_inputDeviceName = QMediaDevices::defaultAudioInput().description();
     } else {
         m_inputEnabled = true;
         m_inputDeviceName = QMediaDevices::defaultAudioInput().description();
@@ -191,6 +197,17 @@ void ConfigModel::setInstallDefaults(bool exclusive, int bufferSizeSamples)
 
 void ConfigModel::reloadFromFile()
 {
+    // The watcher fires for our own saves too. Re-loading one costs the state
+    // that the file cannot express: a disabled input writes an empty device
+    // name, so a self-reload forgets which device to go back to and the input
+    // can never be switched on again.
+    QFile file(m_configPath);
+    if (file.open(QIODevice::ReadOnly)) {
+        const QByteArray current = file.readAll();
+        file.close();
+        if (current == m_lastWritten)
+            return;
+    }
     load();
 }
 
@@ -199,12 +216,8 @@ void ConfigModel::writeTomlFile()
     if (m_loading)
         return;
 
-    QSaveFile file(m_configPath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
-        return;
-
-    QTextStream out(&file);
-    out.setEncoding(QStringConverter::Utf8);
+    QString text;
+    QTextStream out(&text);
     out << "backend = \"Windows WASAPI\"" << "\n"
         << "bufferSizeSamples = " << bufferSize() << "\n"
         << "\n"
@@ -221,6 +234,15 @@ void ConfigModel::writeTomlFile()
         out << "channels = 2" << "\n";
     out << "suggestedLatencySeconds = 0.0" << "\n"
         << "wasapiExclusiveMode = " << (m_exclusiveMode ? "true" : "false") << "\n";
+    out.flush();
+
+    QSaveFile file(m_configPath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+        return;
+    // Remembered so the file watcher can tell our own writes from an external
+    // edit; reloading our own write would re-derive state we already hold.
+    m_lastWritten = text.toUtf8();
+    file.write(m_lastWritten);
     file.commit();
     emitStatusSummaryChanged();
 }

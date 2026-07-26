@@ -2,6 +2,7 @@
 #include "configmodel.h"
 
 #include <QAction>
+#include <QFile>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QMenu>
@@ -34,7 +35,13 @@ TrayManager::TrayManager(ConfigModel *model, QWindow *window, QObject *parent)
     if (m_model) {
         connect(m_model, &ConfigModel::statusSummaryChanged, this, &TrayManager::updateTooltip);
         m_configWatcher.addPath(m_model->configPath());
-        connect(&m_configWatcher, &QFileSystemWatcher::fileChanged, m_model, &ConfigModel::reloadFromFile);
+        connect(&m_configWatcher, &QFileSystemWatcher::fileChanged, this, [this](const QString &path) {
+            m_model->reloadFromFile();
+            // QSaveFile commits by renaming over the target, which drops the
+            // watch, so re-arm it or only the first edit is ever noticed.
+            if (!m_configWatcher.files().contains(path) && QFile::exists(path))
+                m_configWatcher.addPath(path);
+        });
     }
 
     updateTooltip();
