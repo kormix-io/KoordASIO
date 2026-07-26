@@ -3,7 +3,6 @@
         <file>main.qml</file>
         <file>StyledComboBox.qml</file>
         <file>StyledCheckBox.qml</file>
-        <file>ModeButton.qml</file>
         <file>ModeImageButton.qml</file>
         <file>IconButton.qml</file>
         <file>BufferSizeDisplay.qml</file>

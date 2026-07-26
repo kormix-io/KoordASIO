@@ -230,7 +230,7 @@ ApplicationWindow {
                         Layout.preferredHeight: 37
                         offSource: "qrc:/images/shared-off.png"
                         onSource: "qrc:/images/shared-on.png"
-                        checked: !config.exclusiveMode
+                        active: !config.exclusiveMode
                         onClicked: config.exclusiveMode = false
                     }
 
@@ -241,7 +241,7 @@ ApplicationWindow {
                         Layout.preferredHeight: 37
                         offSource: "qrc:/images/exclusive-off.png"
                         onSource: "qrc:/images/exclusive-on.png"
-                        checked: config.exclusiveMode
+                        active: config.exclusiveMode
                         onClicked: config.exclusiveMode = true
                     }
                 }
@@ -370,26 +370,45 @@ ApplicationWindow {
                 Layout.bottomMargin: 2
             }
 
+            // Each box re-reads its value on change: clicking a CheckBox assigns
+            // its own `checked`, which drops the declared binding, so without
+            // this an external edit to the config would leave them showing the
+            // state from before the reload.
             StyledCheckBox {
+                id: inputEnabledBox
                 text: "Input audio"
                 checked: config.inputEnabled
                 Layout.fillWidth: true
                 onToggled: config.inputEnabled = checked
+                Connections {
+                    target: config
+                    function onInputEnabledChanged() { inputEnabledBox.checked = config.inputEnabled }
+                }
             }
 
             StyledCheckBox {
+                id: inputStereoBox
                 text: "Input mono → stereo"
                 checked: config.inputStereoEmulation
                 enabled: config.inputEnabled
                 Layout.fillWidth: true
                 onToggled: config.inputStereoEmulation = checked
+                Connections {
+                    target: config
+                    function onInputStereoEmulationChanged() { inputStereoBox.checked = config.inputStereoEmulation }
+                }
             }
 
             StyledCheckBox {
+                id: outputStereoBox
                 text: "Output mono → stereo"
                 checked: config.outputStereoEmulation
                 Layout.fillWidth: true
                 onToggled: config.outputStereoEmulation = checked
+                Connections {
+                    target: config
+                    function onOutputStereoEmulationChanged() { outputStereoBox.checked = config.outputStereoEmulation }
+                }
             }
 
             Rectangle {
@@ -401,10 +420,15 @@ ApplicationWindow {
             }
 
             StyledCheckBox {
+                id: systrayBox
                 text: "System tray icon"
                 checked: config.systrayEnabled
                 Layout.fillWidth: true
                 onToggled: config.systrayEnabled = checked
+                Connections {
+                    target: config
+                    function onSystrayEnabledChanged() { systrayBox.checked = config.systrayEnabled }
+                }
             }
         }
     }
