@@ -117,6 +117,46 @@ jobs:
 
           Copy-Item "$root\windows\kdinstaller.iss" "$root\kdinstaller.iss" -Force
 
+      - name: Build 32-bit driver
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = $env:GITHUB_WORKSPACE
+          $deploy = "$root\deploy\x86"
+          New-Item -ItemType Directory -Force -Path $deploy | Out-Null
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -property installationPath
+          if (-not $vs) { throw 'no Visual Studio installation found' }
+          $vcvarsall = Join-Path $vs 'VC\Auxiliary\Build\vcvarsall.bat'
+
+          # The x86 toolchain is confined to this one cmd invocation: the job's
+          # environment is set up for x64 and Qt/windeployqt still need it.
+          $build = "$root\build\release\flexasio-x86"
+          cmd /c "`"$vcvarsall`" x86 && cmake -S `"$root\src`" -B `"$build`" -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build `"$build`""
+          if ($LASTEXITCODE -ne 0) { throw "32-bit build failed ($LASTEXITCODE)" }
+
+          $bin = "$build\install\bin"
+          foreach ($f in @('KoordASIO.dll','portaudio.dll','ASIOTest.dll','sndfile.dll','FlexASIOTest.exe','PortAudioDevices.exe')) {
+            Move-Item (Join-Path $bin $f) $deploy -Force
+          }
+
+          if ($env:VCToolsRedistDir) {
+            $crt = Get-ChildItem (Join-Path $env:VCToolsRedistDir 'x86') -Directory |
+              Where-Object { $_.Name -like 'Microsoft.VC*.CRT' } |
+              Sort-Object Name -Descending | Select-Object -First 1
+            if ($crt) { Copy-Item (Join-Path $crt.FullName '*.dll') -Destination $deploy -Force }
+          }
+
+          # Prove it really is 32-bit before it goes anywhere near an installer.
+          $bytes = [System.IO.File]::ReadAllBytes("$deploy\KoordASIO.dll")
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+          $machineType = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          if ($machineType -ne 0x014C) {
+            throw ("KoordASIO.dll is not i386 (machine 0x{0:X4})" -f $machineType)
+          }
+          Write-Host 'x86 KoordASIO.dll confirmed i386'
+
       - name: Install dotnet sign tool
         if: env.ENABLE_SIGNING == 'true'
         shell: pwsh
@@ -130,8 +170,8 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
-          $deploy = "$env:GITHUB_WORKSPACE\deploy\x86_64"
-          foreach ($file in @('KoordASIO.dll', 'KoordASIOControl.exe')) {
+          $deploy = "$env:GITHUB_WORKSPACE\deploy"
+          foreach ($file in @('x86_64\KoordASIO.dll', 'x86_64\KoordASIOControl.exe', 'x86\KoordASIO.dll')) {
             sign code artifact-signing `
               --artifact-signing-endpoint "https://weu.codesigning.azure.net" `
               --artifact-signing-account "kormix-signing" `

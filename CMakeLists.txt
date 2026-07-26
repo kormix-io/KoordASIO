@@ -1,3 +1,3 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(KoordASIO VERSION 2.3.0 LANGUAGES NONE)
+project(KoordASIO VERSION 2.4.0 LANGUAGES NONE)
