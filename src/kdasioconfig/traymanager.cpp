@@ -77,5 +77,6 @@ void TrayManager::updateTooltip()
 {
     if (!m_model)
         return;
-    m_tray.setToolTip(QStringLiteral("KoordASIO Control\n%1").arg(m_model->statusSummary()));
+    // Kept short: the shell's 127-character cap has to cover the summary too.
+    m_tray.setToolTip(QStringLiteral("KoordASIO\n%1").arg(m_model->statusSummary()));
 }

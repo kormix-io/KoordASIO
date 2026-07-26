@@ -4,9 +4,9 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     id: root
-    width: 378
-    minimumWidth: 378
-    maximumWidth: 420
+    width: 302
+    minimumWidth: 302
+    maximumWidth: 336
     // Derived, not hardcoded: a fixed height smaller than the layout needs
     // silently clips the footer, and one larger leaves a dead gap above it.
     height: mainColumn.implicitHeight
@@ -78,8 +78,8 @@ ApplicationWindow {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: 10
-                anchors.leftMargin: 16
-                anchors.rightMargin: 12
+                anchors.leftMargin: 8
+                anchors.rightMargin: 6
                 spacing: 12
 
                 ColumnLayout {
@@ -141,7 +141,10 @@ ApplicationWindow {
 
         ColumnLayout {
             Layout.fillWidth: true
-            Layout.margins: 16
+            Layout.topMargin: 16
+            Layout.bottomMargin: 16
+            Layout.leftMargin: 8
+            Layout.rightMargin: 8
             spacing: 20
 
             SectionPanel {
@@ -288,8 +291,8 @@ ApplicationWindow {
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 10
-                anchors.rightMargin: 10
+                anchors.leftMargin: 5
+                anchors.rightMargin: 5
                 spacing: 8
 
                 Image {

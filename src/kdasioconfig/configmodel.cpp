@@ -55,10 +55,17 @@ QStringList ConfigModel::bufferSizeChoices() const
 
 QString ConfigModel::statusSummary() const
 {
-    const QString input = m_inputEnabled ? m_inputDeviceName : QStringLiteral("off");
+    // One setting per line, label and value aligned. The Windows shell draws this
+    // itself and caps it at 127 characters, so elide long device names rather
+    // than risk losing whole lines off the end.
+    const auto elide = [](const QString &name) {
+        const int limit = 26;
+        return name.length() > limit ? name.left(limit - 1) + QChar(0x2026) : name;
+    };
+    const QString input = m_inputEnabled ? elide(m_inputDeviceName) : QStringLiteral("off");
     const QString mode = m_exclusiveMode ? QStringLiteral("Exclusive") : QStringLiteral("Shared");
-    return QStringLiteral("In: %1 | Out: %2 | %3 | %4 samples")
-        .arg(input, m_outputDeviceName, mode)
+    return QStringLiteral("Input:   %1\nOutput:  %2\nMode:    %3\nBuffer:  %4 samples")
+        .arg(input, elide(m_outputDeviceName), mode)
         .arg(bufferSize());
 }
 
