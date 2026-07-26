@@ -15,6 +15,10 @@ DefaultGroupName=KoordASIO
 DefaultDirName={autopf}\KoordASIO
 AppendDefaultDirName=no
 ArchitecturesInstallIn64BitMode=x64
+; The control app is resident in the system tray, so on an upgrade it holds its
+; own files open; without this the install aborts with code 5.
+CloseApplications=yes
+RestartApplications=no
 ; disk space isn't calculated accurately - set here to 29Mb x 1024 x 1024 bytes
 ExtraDiskSpaceRequired=30408704
 

@@ -5,11 +5,11 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: root
     width: 378
-    height: 580
+    height: 530
     minimumWidth: 378
     maximumWidth: 420
-    minimumHeight: 580
-    maximumHeight: 580
+    minimumHeight: 530
+    maximumHeight: 530
     visible: true
     title: "KoordASIO Control"
     color: clrBg

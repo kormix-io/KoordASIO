@@ -167,6 +167,9 @@ jobs:
           $src = "$env:GITHUB_WORKSPACE\Output\KoordASIO-${{ steps.version.outputs.version }}.exe"
           $dst = "$env:GITHUB_WORKSPACE\deploy\${{ steps.version.outputs.artifact }}"
           Move-Item $src $dst -Force
+          # Second copy under a version-independent name so
+          # /releases/latest/download/KoordASIO-Setup.exe is a permanent link.
+          Copy-Item $dst "$env:GITHUB_WORKSPACE\deploy\KoordASIO-Setup.exe" -Force
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
@@ -217,4 +220,6 @@ jobs:
           draft: true
           prerelease: false
           make_latest: false
-          files: deploy/${{ steps.version.outputs.artifact }}
+          files: |
+            deploy/${{ steps.version.outputs.artifact }}
+            deploy/KoordASIO-Setup.exe

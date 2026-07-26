@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KoordASIO — a user-friendly universal ASIO driver for Windows</title>
+<meta name="description" content="KoordASIO is a free, open-source universal ASIO driver for Windows. Low-latency WASAPI audio for any interface, with a simple control panel and no config files to edit.">
+<link rel="icon" href="logo.png">
+<meta property="og:title" content="KoordASIO — a user-friendly universal ASIO driver">
+<meta property="og:description" content="Low-latency WASAPI audio for any Windows interface. Free and open source.">
+<meta property="og:image" content="https://kormix-io.github.io/KoordASIO/logo.png">
+<meta property="og:type" content="website">
+<style>
+  :root {
+    --bg: #24272a;
+    --panel: #313539;
+    --panel-2: #2b2f33;
+    --border: #454a50;
+    --text: #f0f0f0;
+    --muted: #a2a8af;
+    --accent: #ff9b12;
+    --accent-dark: #bf740d;
+    --maxw: 880px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow-x: hidden;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+
+  /* ---- hero ---- */
+  header {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 56px 0 48px;
+    text-align: center;
+  }
+  header img.logo { width: 260px; max-width: 72vw; height: auto; display: block; margin: 0 auto; }
+  header .tagline {
+    color: var(--muted);
+    font-size: 1.05rem;
+    letter-spacing: .04em;
+    margin: 10px 0 0;
+  }
+  header .blurb {
+    max-width: 620px;
+    margin: 22px auto 0;
+    color: #dfe3e7;
+  }
+
+  .cta { margin-top: 30px; }
+  .btn {
+    display: inline-block;
+    background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: #241a06;
+    font-weight: 700;
+    font-size: 1.06rem;
+    text-decoration: none;
+    padding: 15px 34px;
+    border-radius: 8px;
+    border: 1px solid #7d4c08;
+    box-shadow: 0 2px 0 #1c1f22, 0 6px 18px rgba(0,0,0,.35);
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: translateY(1px); }
+  .cta .sub { color: var(--muted); font-size: .87rem; margin-top: 12px; }
+  .cta .sub a { color: var(--muted); }
+
+  /* ---- sections ---- */
+  section { padding: 46px 0; border-bottom: 1px solid #33383d; }
+  section:last-of-type { border-bottom: 0; }
+  h2 {
+    font-size: .82rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 22px;
+    font-weight: 700;
+  }
+  h3 { font-size: 1.02rem; margin: 0 0 6px; }
+  p { margin: 0 0 14px; }
+
+  .shot {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 34px rgba(0,0,0,.45);
+  }
+  .shot-caption { text-align: center; color: var(--muted); font-size: .87rem; margin-top: 14px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+  .card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .card p { color: var(--muted); margin: 0; font-size: .94rem; }
+
+  ol.steps { margin: 0; padding-left: 20px; }
+  ol.steps li { margin-bottom: 10px; }
+
+  table.specs { border-collapse: collapse; width: 100%; font-size: .94rem; }
+  table.specs th, table.specs td { text-align: left; padding: 9px 12px; border-bottom: 1px solid #33383d; vertical-align: top; }
+  table.specs th { color: var(--muted); font-weight: 600; width: 40%; white-space: nowrap; }
+  .table-scroll { overflow-x: auto; }
+
+  code {
+    background: #1d2023;
+    border: 1px solid #33383d;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: .9em;
+  }
+
+  footer {
+    padding: 34px 0 46px;
+    color: var(--muted);
+    font-size: .87rem;
+    text-align: center;
+  }
+  footer .links { margin-bottom: 14px; }
+  footer .links a { margin: 0 10px; }
+  footer .trademark { font-style: italic; opacity: .8; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <img class="logo" src="logo.png" alt="KoordASIO">
+    <p class="tagline">universal ASIO driver</p>
+    <p class="blurb">
+      Low-latency ASIO audio on Windows for interfaces that never shipped a decent
+      driver of their own — and for the ones that did, but left out what you needed.
+      Free and open source.
+    </p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/kormix-io/KoordASIO/releases/latest/download/KoordASIO-Setup.exe">
+        Download for Windows
+      </a>
+      <p class="sub">
+        64-bit Windows installer, digitally signed &middot;
+        <a href="https://github.com/kormix-io/KoordASIO/releases">all releases and changelog</a>
+      </p>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <img class="shot" src="screenshot.png" alt="The KoordASIO Control window: input and output device selectors, a Shared/Exclusive rendering mode switch, and a buffer size slider.">
+    <p class="shot-caption">KoordASIO Control — everything the driver needs, on one screen.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Why KoordASIO</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Works with any interface</h3>
+        <p>It isn't tied to specific hardware. If Windows can play through it, KoordASIO can present it to your ASIO host.</p>
+      </div>
+      <div class="card">
+        <h3>Genuinely low latency</h3>
+        <p>WASAPI Exclusive Mode with buffers down to 32 samples, going straight to the device and bypassing the Windows mixer.</p>
+      </div>
+      <div class="card">
+        <h3>No config files</h3>
+        <p>Pick your devices, pick a mode, move the slider. Changes are saved the moment you make them.</p>
+      </div>
+      <div class="card">
+        <h3>Shared when you need it</h3>
+        <p>Exclusive Mode locks the device to one application. Switch to Shared Mode to keep a browser or video call running alongside.</p>
+      </div>
+      <div class="card">
+        <h3>Mono interfaces, stereo hosts</h3>
+        <p>Present a mono input or output as stereo for hosts that insist on two channels.</p>
+      </div>
+      <div class="card">
+        <h3>Open source</h3>
+        <p>A derivative of <a href="https://github.com/dechamps/FlexASIO">FlexASIO</a> focused on WASAPI and getting out of your way. Auditable, and free forever.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Getting started</h2>
+    <ol class="steps">
+      <li>Download and run the installer. It registers the driver and sets up a working configuration for you.</li>
+      <li>Open your DAW or ASIO host and choose <strong>KoordASIO</strong> as the audio device.</li>
+      <li>If you need to change anything, open <strong>KoordASIO Control</strong> — from the host's "ASIO Setup" button, the Start menu, or the system tray.</li>
+    </ol>
+    <p style="margin-top:18px">
+      Out of the box you get WASAPI Exclusive Mode, your Windows default recording and
+      playback devices, and a 32-sample buffer. If Exclusive Mode stops other
+      applications from using the same device, switch to Shared Mode in the control panel.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Requirements &amp; details</h2>
+    <div class="table-scroll">
+      <table class="specs">
+        <tr><th>Operating system</th><td>Windows Vista or later, 64-bit</td></tr>
+        <tr><th>Host applications</th><td>Any 64-bit ASIO host — Ableton Live, Reaper, Cubase, Jamulus, and others</td></tr>
+        <tr><th>Audio backend</th><td>Windows WASAPI, Shared or Exclusive Mode</td></tr>
+        <tr><th>Buffer sizes</th><td>32 to 2048 samples</td></tr>
+        <tr><th>Sample format</th><td>32-bit float</td></tr>
+        <tr><th>Settings file</th><td><code>.KoordASIO.toml</code> in your user folder</td></tr>
+        <tr><th>Licence</th><td>Open source — see the repository</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Documentation &amp; help</h2>
+    <p>
+      Something not working? Open an issue on
+      <a href="https://github.com/kormix-io/KoordASIO/issues">the issue tracker</a> —
+      include your interface, your host application, and what you were doing.
+    </p>
+    <p>
+      For deeper reading:
+      <a href="https://github.com/kormix-io/KoordASIO/blob/v2/FAQ.md">FAQ</a>,
+      <a href="https://github.com/kormix-io/KoordASIO/blob/v2/BACKENDS.md">audio backends</a> (what Shared and Exclusive Mode really do), and
+      <a href="https://github.com/kormix-io/KoordASIO/blob/v2/CONFIGURATION.md">the full configuration reference</a>
+      for the settings the control panel doesn't expose.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://github.com/kormix-io/KoordASIO">GitHub</a>
+      <a href="https://github.com/kormix-io/KoordASIO/releases">Releases</a>
+      <a href="https://github.com/kormix-io/KoordASIO/issues">Issues</a>
+    </div>
+    <p class="trademark">ASIO is a trademark and software of Steinberg Media Technologies GmbH.</p>
+  </div>
+</footer>
+
+</body>
+</html>
