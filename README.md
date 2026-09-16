@@ -72,11 +72,27 @@ natively (usually 48000 Hz). If the rates don't match, KoordASIO tells you
 exactly that when the host tries to start audio, and offers to switch you back
 to Shared Mode.
 The menu button in the top right holds the less-used options: disabling input
-when it isn't needed, presenting mono devices as stereo for ASIO hosts that
-expect two channels, and turning the system tray icon on or off.
+when it isn't needed, and turning the system tray icon on or off.
 
 KoordASIO keeps its settings in `.KoordASIO.toml` in your user folder, and
 writes the file as soon as you change anything — there is no Save button.
+
+## Logging
+
+To enable driver logging, create an empty file called `KoordASIO.log` in your
+user folder (`C:\Users\<you>\KoordASIO.log`), then reproduce the problem. The
+driver only logs while that file exists — delete it to switch logging off
+again.
+
+Two things to know:
+
+ - Logging is **very** verbose while audio is streaming (it can write hundreds
+   of megabytes per minute), and it does blocking file I/O from the audio
+   path, so do not leave it enabled during normal use.
+ - The driver **stops logging once the file exceeds 1 GiB** and stays silent
+   from then on. If your log ends abruptly and later sessions add nothing,
+   delete (or rename) the file and create a fresh empty one to re-enable
+   logging.
 
 ## Troubleshooting
 Hopefully KoordASIO should work seamlessly out-of-the-box for you. If you do notice

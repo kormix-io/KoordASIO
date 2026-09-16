@@ -24,8 +24,6 @@ class ConfigModel : public QObject
     Q_PROPERTY(QString defaultInputDevice READ defaultInputDevice NOTIFY defaultDevicesChanged)
     Q_PROPERTY(QString defaultOutputDevice READ defaultOutputDevice NOTIFY defaultDevicesChanged)
     Q_PROPERTY(bool inputEnabled READ inputEnabled WRITE setInputEnabled NOTIFY inputEnabledChanged)
-    Q_PROPERTY(bool inputStereoEmulation READ inputStereoEmulation WRITE setInputStereoEmulation NOTIFY inputStereoEmulationChanged)
-    Q_PROPERTY(bool outputStereoEmulation READ outputStereoEmulation WRITE setOutputStereoEmulation NOTIFY outputStereoEmulationChanged)
     Q_PROPERTY(bool exclusiveMode READ exclusiveMode WRITE setExclusiveMode NOTIFY exclusiveModeChanged)
     Q_PROPERTY(int bufferSizeIndex READ bufferSizeIndex WRITE setBufferSizeIndex NOTIFY bufferSizeChanged)
     Q_PROPERTY(int bufferSize READ bufferSize NOTIFY bufferSizeChanged)
@@ -42,11 +40,9 @@ public:
     QStringList outputDevices() const { return m_outputDevices; }
     QString inputDevice() const { return m_inputDeviceName; }
     QString outputDevice() const { return m_outputDeviceName; }
-    QString defaultInputDevice() const;
-    QString defaultOutputDevice() const;
+    QString defaultInputDevice() const { return m_defaultInputName; }
+    QString defaultOutputDevice() const { return m_defaultOutputName; }
     bool inputEnabled() const { return m_inputEnabled; }
-    bool inputStereoEmulation() const { return m_inputStereoEmulation; }
-    bool outputStereoEmulation() const { return m_outputStereoEmulation; }
     bool exclusiveMode() const { return m_exclusiveMode; }
     int bufferSizeIndex() const { return m_bufferSizeIndex; }
     int bufferSize() const { return m_bufferSizes.value(m_bufferSizeIndex, 32); }
@@ -59,8 +55,6 @@ public:
     void setInputDevice(const QString &name);
     void setOutputDevice(const QString &name);
     void setInputEnabled(bool enabled);
-    void setInputStereoEmulation(bool enabled);
-    void setOutputStereoEmulation(bool enabled);
     void setExclusiveMode(bool exclusive);
     void setBufferSizeIndex(int index);
     void setSystrayEnabled(bool enabled);
@@ -83,8 +77,6 @@ signals:
     void outputDeviceChanged();
     void defaultDevicesChanged();
     void inputEnabledChanged();
-    void inputStereoEmulationChanged();
-    void outputStereoEmulationChanged();
     void exclusiveModeChanged();
     void bufferSizeChanged();
     void statusSummaryChanged();
@@ -105,6 +97,10 @@ private:
     QString m_outputDeviceName;  // empty = follow the Windows default
     QStringList m_inputDevices;
     QStringList m_outputDevices;
+    // Cached: querying the default endpoints goes through COM, and doing that
+    // on the UI thread for every settings change made the panel hitch.
+    QString m_defaultInputName;
+    QString m_defaultOutputName;
     QString m_configPath;
     QString m_version;
     QByteArray m_lastWritten;
@@ -114,8 +110,6 @@ private:
     int m_bufferSizeIndex = 0;
     bool m_exclusiveMode = false;
     bool m_inputEnabled = true;
-    bool m_inputStereoEmulation = false;
-    bool m_outputStereoEmulation = false;
     bool m_loading = false;
     bool m_systrayEnabled = true;
     QSettings m_settings;

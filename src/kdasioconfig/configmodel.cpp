@@ -71,26 +71,14 @@ ConfigModel::ConfigModel(QObject *parent)
         refreshDeviceLists();
         if (healPinnedDevices())
             writeTomlFile();
-        emit defaultDevicesChanged();
         emitStatusSummaryChanged();
     });
     connect(m_devices, &QMediaDevices::audioOutputsChanged, this, [this]() {
         refreshDeviceLists();
         if (healPinnedDevices())
             writeTomlFile();
-        emit defaultDevicesChanged();
         emitStatusSummaryChanged();
     });
-}
-
-QString ConfigModel::defaultInputDevice() const
-{
-    return QMediaDevices::defaultAudioInput().description();
-}
-
-QString ConfigModel::defaultOutputDevice() const
-{
-    return QMediaDevices::defaultAudioOutput().description();
 }
 
 QStringList ConfigModel::bufferSizeChoices() const
@@ -111,8 +99,8 @@ QString ConfigModel::statusSummary() const
         return name.length() > limit ? name.left(limit - 1) + QChar(0x2026) : name;
     };
     const QString input = !m_inputEnabled ? QStringLiteral("off")
-        : elide(m_inputDeviceName.isEmpty() ? defaultInputDevice() : m_inputDeviceName);
-    const QString output = elide(m_outputDeviceName.isEmpty() ? defaultOutputDevice() : m_outputDeviceName);
+        : elide(m_inputDeviceName.isEmpty() ? m_defaultInputName : m_inputDeviceName);
+    const QString output = elide(m_outputDeviceName.isEmpty() ? m_defaultOutputName : m_outputDeviceName);
     const QString mode = m_exclusiveMode ? QStringLiteral("Exclusive") : QStringLiteral("Shared");
     return QStringLiteral("Input:   %1\nOutput:  %2\nMode:    %3\nBuffer:  %4 samples")
         .arg(input, output, mode)
@@ -121,6 +109,16 @@ QString ConfigModel::statusSummary() const
 
 void ConfigModel::refreshDeviceLists()
 {
+    // The default endpoints are cached here, on the device-change path, so the
+    // getters and statusSummary never touch COM on an ordinary settings change.
+    const QString defaultInput = QMediaDevices::defaultAudioInput().description();
+    const QString defaultOutput = QMediaDevices::defaultAudioOutput().description();
+    if (defaultInput != m_defaultInputName || defaultOutput != m_defaultOutputName) {
+        m_defaultInputName = defaultInput;
+        m_defaultOutputName = defaultOutput;
+        emit defaultDevicesChanged();
+    }
+
     QStringList inputs;
     for (const QAudioDevice &device : m_devices->audioInputs())
         inputs << device.description();
@@ -186,16 +184,14 @@ void ConfigModel::load()
 
     emit bufferSizeChanged();
     emit inputEnabledChanged();
-    emit inputStereoEmulationChanged();
-    emit outputStereoEmulationChanged();
     emit exclusiveModeChanged();
     emit inputDeviceChanged();
     emit outputDeviceChanged();
-    emit defaultDevicesChanged();
     emitStatusSummaryChanged();
 
-    // A healed pin (or a config from a version with different semantics) must
-    // reach the file, or the driver keeps reading a stale name.
+    // A healed pin (or a config from a version with different semantics, such
+    // as a leftover mono-as-stereo channels key) must reach the file, or the
+    // driver keeps reading settings the app no longer shows.
     if (tomlText().toUtf8() != configData)
         writeTomlFile();
 }
@@ -221,9 +217,6 @@ void ConfigModel::applyTomlValues(const toml::Value &v)
         m_inputDeviceName.clear();
     }
 
-    const toml::Value *inputChannels = v.find("input.channels");
-    m_inputStereoEmulation = inputChannels && inputChannels->is<int>() && inputChannels->as<int>() == 2;
-
     const toml::Value *inputExcl = v.find("input.wasapiExclusiveMode");
     if (inputExcl && inputExcl->is<bool>())
         m_exclusiveMode = inputExcl->as<bool>();
@@ -233,9 +226,6 @@ void ConfigModel::applyTomlValues(const toml::Value &v)
         m_outputDeviceName = QString::fromStdString(outputDev->as<std::string>());
     else
         m_outputDeviceName.clear();
-
-    const toml::Value *outputChannels = v.find("output.channels");
-    m_outputStereoEmulation = outputChannels && outputChannels->is<int>() && outputChannels->as<int>() == 2;
 
     const toml::Value *outputExcl = v.find("output.wasapiExclusiveMode");
     if (outputExcl && outputExcl->is<bool>())
@@ -271,8 +261,6 @@ void ConfigModel::setInstallDefaults(bool exclusive, int bufferSizeSamples)
     m_bufferSizeIndex = bufferSizeToIndex(bufferSizeSamples);
     m_exclusiveMode = exclusive;
     m_inputEnabled = true;
-    m_inputStereoEmulation = false;
-    m_outputStereoEmulation = false;
     m_inputDeviceName.clear();
     m_outputDeviceName.clear();
     refreshDeviceLists();
@@ -280,12 +268,9 @@ void ConfigModel::setInstallDefaults(bool exclusive, int bufferSizeSamples)
 
     emit bufferSizeChanged();
     emit inputEnabledChanged();
-    emit inputStereoEmulationChanged();
-    emit outputStereoEmulationChanged();
     emit exclusiveModeChanged();
     emit inputDeviceChanged();
     emit outputDeviceChanged();
-    emit defaultDevicesChanged();
     writeTomlFile();
 }
 
@@ -316,16 +301,12 @@ QString ConfigModel::tomlText() const
         out << "device = \"\"" << "\n";
     else if (!m_inputDeviceName.isEmpty())
         out << "device = \"" << m_inputDeviceName << "\"\n";
-    if (m_inputEnabled && m_inputStereoEmulation)
-        out << "channels = 2" << "\n";
     out << "suggestedLatencySeconds = 0.0" << "\n"
         << "wasapiExclusiveMode = " << (m_exclusiveMode ? "true" : "false") << "\n"
         << "\n"
         << "[output]" << "\n";
     if (!m_outputDeviceName.isEmpty())
         out << "device = \"" << m_outputDeviceName << "\"\n";
-    if (m_outputStereoEmulation)
-        out << "channels = 2" << "\n";
     out << "suggestedLatencySeconds = 0.0" << "\n"
         << "wasapiExclusiveMode = " << (m_exclusiveMode ? "true" : "false") << "\n";
     out.flush();
@@ -377,24 +358,6 @@ void ConfigModel::setInputEnabled(bool enabled)
         return;
     m_inputEnabled = enabled;
     emit inputEnabledChanged();
-    writeTomlFile();
-}
-
-void ConfigModel::setInputStereoEmulation(bool enabled)
-{
-    if (m_inputStereoEmulation == enabled)
-        return;
-    m_inputStereoEmulation = enabled;
-    emit inputStereoEmulationChanged();
-    writeTomlFile();
-}
-
-void ConfigModel::setOutputStereoEmulation(bool enabled)
-{
-    if (m_outputStereoEmulation == enabled)
-        return;
-    m_outputStereoEmulation = enabled;
-    emit outputStereoEmulationChanged();
     writeTomlFile();
 }
 

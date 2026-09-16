@@ -102,6 +102,12 @@ void applyDarkPalette(QApplication &app)
 
 int main(int argc, char **argv)
 {
+    // Software rasterizer: the panel is a small static layout, and the default
+    // D3D11 scene graph showed triangular/line artifacts on some GPU drivers
+    // (seen on an AMD Raphael iGPU). Software rendering is imperceptible at
+    // this size and identical on every machine.
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
+
     QApplication app(argc, argv);
     initLogFile();
     qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &context, const QString &msg) {

@@ -429,31 +429,6 @@ ApplicationWindow {
                 }
             }
 
-            StyledCheckBox {
-                id: inputStereoBox
-                text: "Input mono → stereo"
-                checked: config.inputStereoEmulation
-                enabled: config.inputEnabled
-                Layout.fillWidth: true
-                onToggled: config.inputStereoEmulation = checked
-                Connections {
-                    target: config
-                    function onInputStereoEmulationChanged() { inputStereoBox.checked = config.inputStereoEmulation }
-                }
-            }
-
-            StyledCheckBox {
-                id: outputStereoBox
-                text: "Output mono → stereo"
-                checked: config.outputStereoEmulation
-                Layout.fillWidth: true
-                onToggled: config.outputStereoEmulation = checked
-                Connections {
-                    target: config
-                    function onOutputStereoEmulationChanged() { outputStereoBox.checked = config.outputStereoEmulation }
-                }
-            }
-
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
