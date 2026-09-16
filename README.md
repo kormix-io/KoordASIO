@@ -59,7 +59,9 @@ them, change the default in Windows Sound settings, and KoordASIO follows,
 with nothing to reconfigure. For the lowest possible latency and bit-perfect
 output, switch to [Exclusive Mode][BACKENDS] in the Control GUI; note that
 Exclusive Mode locks the device to one application and requires your host to
-run at a sample rate the device supports natively (usually 48000 Hz).
+run at a sample rate the device supports natively (usually 48000 Hz). If the
+rates don't match, KoordASIO tells you exactly that when the host tries to
+start audio, and offers to switch you back to Shared Mode.
 
 The KoordASIO Control GUI shows which devices audio goes to (with a link to
 the Windows control panel where the defaults are changed), lets you choose

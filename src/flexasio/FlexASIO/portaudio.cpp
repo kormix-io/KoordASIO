@@ -38,7 +38,7 @@ namespace flexasio {
 		Log() << "...stream callback: " << streamCallback << " (user data " << userData << ")";
 		PaStream* stream = nullptr;
 		const auto error = Pa_OpenStream(&stream, streamParameters.inputParameters, streamParameters.outputParameters, streamParameters.sampleRate, framesPerBuffer, streamFlags, streamCallback, userData);
-		if (error != paNoError) throw std::runtime_error(std::string("unable to open PortAudio stream: ") + Pa_GetErrorText(error));
+		if (error != paNoError) throw PortAudioException(error, std::string("unable to open PortAudio stream: ") + Pa_GetErrorText(error));
 		if (stream == nullptr)throw std::runtime_error("Pa_OpenStream() unexpectedly returned null");
 		Log() << "PortAudio stream opened: " << stream;
 		return Stream(stream);

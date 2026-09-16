@@ -59,6 +59,16 @@ namespace flexasio {
 			return sampleRate >= 0.001 && sampleRate < 100'000'000;
 		}
 
+		// KoordASIO addition: asked at most once per host process - hosts retry a
+		// failed setup at several rates in a row, and one box per attempt would
+		// bury the user. Returns true if the user wants KoordASIO Control opened.
+		bool AskAboutExclusiveRateFailureOnce(const std::string& message) {
+			static std::atomic<bool> alreadyAsked = false;
+			if (alreadyAsked.exchange(true)) return false;
+			Log() << "Alerting user: " << message;
+			return ::MessageBoxA(NULL, message.c_str(), "KoordASIO", MB_YESNO | MB_ICONWARNING | MB_TOPMOST | MB_SETFOREGROUND) == IDYES;
+		}
+
 		void LogPortAudioApiList() {
 			const auto pa_api_count = Pa_GetHostApiCount();
 			for (PaHostApiIndex pa_api_index = 0; pa_api_index < pa_api_count; ++pa_api_index) {
@@ -728,7 +738,50 @@ namespace flexasio {
 			// See https://github.com/dechamps/FlexASIO/issues/31
 			Log() << "WARNING: ASIO host application never enquired about sample rate, and therefore cannot know we are running at " << sampleRate << " Hz!";
 		}
-		preparedState.emplace(*this, sampleRate, bufferInfos, numChannels, bufferSize, callbacks);
+		try {
+			preparedState.emplace(*this, sampleRate, bufferInfos, numChannels, bufferSize, callbacks);
+		}
+		catch (const PortAudioException& exception) {
+			// KoordASIO addition - the one functional divergence from upstream
+			// FlexASIO, which fails this scenario silently: Exclusive mode has no
+			// sample rate conversion, so a device that does not do the host's rate
+			// natively rejects the stream, and the host surfaces that as a generic
+			// "driver failed" with no cause. Tell the user what happened and offer
+			// the way out. The failure itself is unchanged: we still throw, and the
+			// host still sees ASE_HWMalfunction.
+			if (hostApi.info.type == paWASAPI &&
+				(config.input.wasapiExclusiveMode || config.output.wasapiExclusiveMode) &&
+				(exception.GetError() == paInvalidSampleRate || exception.GetError() == paSampleFormatNotSupported)) {
+				const auto rate = std::to_string(static_cast<long long>(sampleRate));
+
+				// Best native-rate hint we have: the devices' default (mix) rate.
+				// Stay silent about it if the exclusive devices disagree.
+				std::optional<double> nativeRate;
+				if (config.output.wasapiExclusiveMode && outputDevice.has_value()) nativeRate = outputDevice->info.defaultSampleRate;
+				if (config.input.wasapiExclusiveMode && inputDevice.has_value()) {
+					if (!nativeRate.has_value()) nativeRate = inputDevice->info.defaultSampleRate;
+					else if (*nativeRate != inputDevice->info.defaultSampleRate) nativeRate.reset();
+				}
+				const auto nativeRateText = nativeRate.has_value()
+					? " (this device reports " + std::to_string(static_cast<long long>(*nativeRate)) + " Hz)"
+					: "";
+
+				if (AskAboutExclusiveRateFailureOnce(
+					"KoordASIO could not start in EXCLUSIVE mode:\n"
+					"the audio device rejected the sample rate " + rate + " Hz.\n"
+					"\n"
+					"Exclusive mode has no sample-rate conversion, so your audio application "
+					"must run at a rate the device supports natively" + nativeRateText + ".\n"
+					"\n"
+					"Either change the application's sample rate, or switch KoordASIO to "
+					"SHARED mode, which accepts any rate.\n"
+					"\n"
+					"Open KoordASIO Control now to switch to SHARED mode?"))
+					OpenControlPanel(windowHandle);
+				throw ASIOException(ASE_HWMalfunction, "device rejected " + rate + " Hz in Exclusive mode: use the device's native rate, or Shared mode in KoordASIO Control");
+			}
+			throw;
+		}
 	}
 
 	FlexASIO::PreparedState::Buffers::Buffers(size_t bufferSetCount, size_t inputChannelCount, size_t outputChannelCount, size_t bufferSizeInFrames, size_t inputSampleSizeInBytes, size_t outputSampleSizeInBytes) :
