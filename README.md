@@ -45,21 +45,26 @@ and Reaper, and 32-bit plugin bridges — find KoordASIO without you having to
 pick a build. The control panel itself is 64-bit, which is why 64-bit Windows is
 required.
 
-The installer sets up a working low-latency configuration straight away:
+The installer sets up a working configuration straight away:
 
- - WASAPI [Exclusive Mode][BACKENDS]
- - Uses the Windows default recording and playback audio devices
+ - WASAPI [Shared Mode][BACKENDS] — accepts any sample rate your host asks
+   for, and plays alongside other applications
+ - Follows the Windows default recording and playback audio devices
  - 32-bit float sample type
- - 32-sample buffer size
+ - 128-sample buffer size
  - Minimum "suggested" latency
 
-If Exclusive Mode stops other applications from playing audio through the same
-device — which is what "exclusive" means — switch to [Shared Mode][BACKENDS] in
-the Control GUI.
+KoordASIO always uses the Windows default devices — plug things in, unplug
+them, change the default in Windows Sound settings, and KoordASIO follows,
+with nothing to reconfigure. For the lowest possible latency and bit-perfect
+output, switch to [Exclusive Mode][BACKENDS] in the Control GUI; note that
+Exclusive Mode locks the device to one application and requires your host to
+run at a sample rate the device supports natively (usually 48000 Hz).
 
-The KoordASIO Control GUI lets you select your Input/Output audio devices (with
-a link to the relevant Windows control panel), choose between Shared or
-Exclusive mode, and change the Buffer Size in steps between 32 and 2048 samples.
+The KoordASIO Control GUI shows which devices audio goes to (with a link to
+the Windows control panel where the defaults are changed), lets you choose
+between Shared or Exclusive mode, and changes the Buffer Size in steps between
+32 and 2048 samples.
 The menu button in the top right holds the less-used options: disabling input
 when it isn't needed, presenting mono devices as stereo for ASIO hosts that
 expect two channels, and turning the system tray icon on or off.

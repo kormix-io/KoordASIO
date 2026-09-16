@@ -124,18 +124,21 @@ int main(int argc, char **argv)
         } else if (!arg.compare(QStringLiteral("-defaults")) || !arg.compare(QStringLiteral("-de"))) {
             // Seed a config, don't impose one: the installer runs this on every
             // install including upgrades, so overwriting unconditionally threw
-            // away the device, mode and buffer the user had chosen.
+            // away the mode and buffer the user had chosen. Shared, not
+            // Exclusive: an Exclusive out-of-the-box config made the driver
+            // fail to load in hosts running at a rate the device does not do
+            // natively (issue #16).
             if (!configModel.hasStoredConfig())
-                configModel.setInstallDefaults(true);
+                configModel.setInstallDefaults(false);
             return 0;
         } else if (!arg.compare(QStringLiteral("-ds"))) {
             configModel.setInstallDefaults(false);
             return 0;
         } else if (arg.startsWith(QStringLiteral("-buffer="))) {
-            int bufferSize = 32;
+            int bufferSize = 128;
             if (!parseBufferSize(arg.mid(8), bufferSize))
                 return 1;
-            configModel.setInstallDefaults(true, bufferSize);
+            configModel.setInstallDefaults(false, bufferSize);
             return 0;
         } else if (!arg.compare(QStringLiteral("-exclusive"))) {
             configModel.setInstallDefaults(true);

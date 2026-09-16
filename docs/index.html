@@ -162,7 +162,7 @@
 
 <section>
   <div class="wrap">
-    <img class="shot" src="screenshot.png" alt="The KoordASIO Control window: input and output device selectors, a Shared/Exclusive rendering mode switch, and a buffer size slider.">
+    <img class="shot" src="screenshot.png" alt="The KoordASIO Control window: the current input and output devices, a Shared/Exclusive rendering mode switch, and a buffer size slider.">
     <p class="shot-caption">KoordASIO Control — everything the driver needs, on one screen.</p>
   </div>
 </section>
@@ -185,11 +185,11 @@
       </div>
       <div class="card">
         <h3>No config files</h3>
-        <p>Pick your devices, pick a mode, move the slider. Changes are saved the moment you make them.</p>
+        <p>KoordASIO follows your Windows default devices — plug in, unplug, switch defaults, nothing to reconfigure. Pick a mode, move the slider; changes are saved the moment you make them.</p>
       </div>
       <div class="card">
-        <h3>Shared when you need it</h3>
-        <p>Exclusive Mode locks the device to one application. Switch to Shared Mode to keep a browser or video call running alongside.</p>
+        <h3>Shared by default</h3>
+        <p>Out of the box KoordASIO runs in Shared Mode, so a browser or video call keeps playing and any host sample rate works. Switch to Exclusive Mode when you want the device all to yourself.</p>
       </div>
       <div class="card">
         <h3>Mono interfaces, stereo hosts</h3>
@@ -212,9 +212,11 @@
       <li>If you need to change anything, open <strong>KoordASIO Control</strong> — from the host's "ASIO Setup" button, the Start menu, or the system tray.</li>
     </ol>
     <p style="margin-top:18px">
-      Out of the box you get WASAPI Exclusive Mode, your Windows default recording and
-      playback devices, and a 32-sample buffer. If Exclusive Mode stops other
-      applications from using the same device, switch to Shared Mode in the control panel.
+      Out of the box you get WASAPI Shared Mode, your Windows default recording and
+      playback devices, and a 128-sample buffer — a configuration that works with any
+      host at any sample rate. For the lowest possible latency, switch to Exclusive
+      Mode in the control panel and set your host to a sample rate the device supports
+      natively (usually 48000&nbsp;Hz).
     </p>
   </div>
 </section>

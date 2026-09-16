@@ -12,10 +12,10 @@
 class ConfigModel : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(QStringList inputDevices READ inputDevices NOTIFY inputDevicesChanged)
-    Q_PROPERTY(QStringList outputDevices READ outputDevices NOTIFY outputDevicesChanged)
-    Q_PROPERTY(QString inputDevice READ inputDevice WRITE setInputDevice NOTIFY inputDeviceChanged)
-    Q_PROPERTY(QString outputDevice READ outputDevice WRITE setOutputDevice NOTIFY outputDeviceChanged)
+    // Read-only: the Windows default devices, shown so the user knows where
+    // audio will go. The driver follows the defaults; the config names nothing.
+    Q_PROPERTY(QString inputDevice READ inputDevice NOTIFY inputDeviceChanged)
+    Q_PROPERTY(QString outputDevice READ outputDevice NOTIFY outputDeviceChanged)
     Q_PROPERTY(bool inputEnabled READ inputEnabled WRITE setInputEnabled NOTIFY inputEnabledChanged)
     Q_PROPERTY(bool inputStereoEmulation READ inputStereoEmulation WRITE setInputStereoEmulation NOTIFY inputStereoEmulationChanged)
     Q_PROPERTY(bool outputStereoEmulation READ outputStereoEmulation WRITE setOutputStereoEmulation NOTIFY outputStereoEmulationChanged)
@@ -31,10 +31,8 @@ class ConfigModel : public QObject
 public:
     explicit ConfigModel(QObject *parent = nullptr);
 
-    QStringList inputDevices() const { return m_inputDevices; }
-    QStringList outputDevices() const { return m_outputDevices; }
-    QString inputDevice() const { return m_inputDeviceName; }
-    QString outputDevice() const { return m_outputDeviceName; }
+    QString inputDevice() const;
+    QString outputDevice() const;
     bool inputEnabled() const { return m_inputEnabled; }
     bool inputStereoEmulation() const { return m_inputStereoEmulation; }
     bool outputStereoEmulation() const { return m_outputStereoEmulation; }
@@ -47,8 +45,6 @@ public:
     QString statusSummary() const;
     bool systrayEnabled() const { return m_systrayEnabled; }
 
-    void setInputDevice(const QString &name);
-    void setOutputDevice(const QString &name);
     void setInputEnabled(bool enabled);
     void setInputStereoEmulation(bool enabled);
     void setOutputStereoEmulation(bool enabled);
@@ -59,7 +55,7 @@ public:
     Q_INVOKABLE void load();
     Q_INVOKABLE bool hasStoredConfig() const;
     Q_INVOKABLE void setDefaults();
-    Q_INVOKABLE void setInstallDefaults(bool exclusive, int bufferSizeSamples = 32);
+    Q_INVOKABLE void setInstallDefaults(bool exclusive, int bufferSizeSamples = 128);
     Q_INVOKABLE void openInputSettings();
     Q_INVOKABLE void openOutputSettings();
     Q_INVOKABLE void openGitHub();
@@ -68,8 +64,6 @@ public:
     Q_INVOKABLE void reloadFromFile();
 
 signals:
-    void inputDevicesChanged();
-    void outputDevicesChanged();
     void inputDeviceChanged();
     void outputDeviceChanged();
     void inputEnabledChanged();
@@ -81,7 +75,7 @@ signals:
     void systrayEnabledChanged();
 
 private:
-    void refreshDeviceLists();
+    QString tomlText() const;
     void writeTomlFile();
     void applyTomlValues(const toml::Value &v);
     void emitStatusSummaryChanged();
@@ -89,10 +83,6 @@ private:
 
     QMediaDevices *m_devices = nullptr;
     QProcess *m_mmcplProc = nullptr;
-    QString m_inputDeviceName;
-    QString m_outputDeviceName;
-    QStringList m_inputDevices;
-    QStringList m_outputDevices;
     QString m_configPath;
     QString m_version;
     QByteArray m_lastWritten;

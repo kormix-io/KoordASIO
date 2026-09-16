@@ -36,13 +36,28 @@ ConfigModel::ConfigModel(QObject *parent)
 {
     m_systrayEnabled = m_settings.value(QStringLiteral("systrayEnabled"), true).toBool();
     connect(m_devices, &QMediaDevices::audioInputsChanged, this, [this]() {
-        refreshDeviceLists();
-        writeTomlFile();
+        emit inputDeviceChanged();
+        emitStatusSummaryChanged();
     });
     connect(m_devices, &QMediaDevices::audioOutputsChanged, this, [this]() {
-        refreshDeviceLists();
-        writeTomlFile();
+        emit outputDeviceChanged();
+        emitStatusSummaryChanged();
     });
+}
+
+// The config never names devices: the driver follows the Windows default
+// devices, the way a configless FlexASIO does. Pinning a name broke the driver
+// outright whenever Windows renumbered an endpoint ("Speakers (3- USB Audio
+// Device)" coming back as "(4- ...)" after a port change). These getters only
+// feed the UI, so the user can see where audio will go.
+QString ConfigModel::inputDevice() const
+{
+    return QMediaDevices::defaultAudioInput().description();
+}
+
+QString ConfigModel::outputDevice() const
+{
+    return QMediaDevices::defaultAudioOutput().description();
 }
 
 QStringList ConfigModel::bufferSizeChoices() const
@@ -62,30 +77,11 @@ QString ConfigModel::statusSummary() const
         const int limit = 26;
         return name.length() > limit ? name.left(limit - 1) + QChar(0x2026) : name;
     };
-    const QString input = m_inputEnabled ? elide(m_inputDeviceName) : QStringLiteral("off");
+    const QString input = m_inputEnabled ? elide(inputDevice()) : QStringLiteral("off");
     const QString mode = m_exclusiveMode ? QStringLiteral("Exclusive") : QStringLiteral("Shared");
     return QStringLiteral("Input:   %1\nOutput:  %2\nMode:    %3\nBuffer:  %4 samples")
-        .arg(input, elide(m_outputDeviceName), mode)
+        .arg(input, elide(outputDevice()), mode)
         .arg(bufferSize());
-}
-
-void ConfigModel::refreshDeviceLists()
-{
-    QStringList inputs;
-    for (const QAudioDevice &device : m_devices->audioInputs())
-        inputs << device.description();
-
-    QStringList outputs;
-    for (const QAudioDevice &device : m_devices->audioOutputs())
-        outputs << device.description();
-
-    if (inputs == m_inputDevices && outputs == m_outputDevices)
-        return;
-
-    m_inputDevices = inputs;
-    m_outputDevices = outputs;
-    emit inputDevicesChanged();
-    emit outputDevicesChanged();
 }
 
 int ConfigModel::bufferSizeToIndex(int samples) const
@@ -97,11 +93,10 @@ int ConfigModel::bufferSizeToIndex(int samples) const
 void ConfigModel::load()
 {
     m_loading = true;
-    refreshDeviceLists();
 
     QFile configFile(m_configPath);
     if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        setInstallDefaults(true, 32);
+        setInstallDefaults(false, 128);
         m_loading = false;
         return;
     }
@@ -111,7 +106,7 @@ void ConfigModel::load()
     std::istringstream stream(configData.constData());
     const toml::ParseResult pr = toml::parse(stream);
     if (!pr.valid()) {
-        setInstallDefaults(true, 32);
+        setInstallDefaults(false, 128);
         m_loading = false;
         return;
     }
@@ -127,6 +122,12 @@ void ConfigModel::load()
     emit inputDeviceChanged();
     emit outputDeviceChanged();
     emitStatusSummaryChanged();
+
+    // Configs written by older versions pin device names, which the driver
+    // fails on once Windows renumbers an endpoint. Rewriting in the canonical
+    // keyless form heals them the moment this app runs.
+    if (tomlText().toUtf8() != configData)
+        writeTomlFile();
 }
 
 void ConfigModel::applyTomlValues(const toml::Value &v)
@@ -137,21 +138,10 @@ void ConfigModel::applyTomlValues(const toml::Value &v)
     else
         m_bufferSizeIndex = bufferSizeToIndex(64);
 
+    // An empty device string is FlexASIO's "input off"; any other value —
+    // including a pinned name from an older version — means input is on.
     const toml::Value *inputDev = v.find("input.device");
-    if (inputDev && inputDev->is<std::string>()) {
-        const QString device = QString::fromStdString(inputDev->as<std::string>());
-        m_inputEnabled = !device.isEmpty();
-        // An empty device means input is off, not that there is no device to go
-        // back to. Keep whatever we already had, or fall back to the system
-        // default, so switching input back on always has something to select.
-        if (m_inputEnabled)
-            m_inputDeviceName = device;
-        else if (m_inputDeviceName.isEmpty())
-            m_inputDeviceName = QMediaDevices::defaultAudioInput().description();
-    } else {
-        m_inputEnabled = true;
-        m_inputDeviceName = QMediaDevices::defaultAudioInput().description();
-    }
+    m_inputEnabled = !(inputDev && inputDev->is<std::string>() && inputDev->as<std::string>().empty());
 
     const toml::Value *inputChannels = v.find("input.channels");
     m_inputStereoEmulation = inputChannels && inputChannels->is<int>() && inputChannels->as<int>() == 2;
@@ -159,12 +149,6 @@ void ConfigModel::applyTomlValues(const toml::Value &v)
     const toml::Value *inputExcl = v.find("input.wasapiExclusiveMode");
     if (inputExcl && inputExcl->is<bool>())
         m_exclusiveMode = inputExcl->as<bool>();
-
-    const toml::Value *outputDev = v.find("output.device");
-    if (outputDev && outputDev->is<std::string>())
-        m_outputDeviceName = QString::fromStdString(outputDev->as<std::string>());
-    else
-        m_outputDeviceName = QMediaDevices::defaultAudioOutput().description();
 
     const toml::Value *outputChannels = v.find("output.channels");
     m_outputStereoEmulation = outputChannels && outputChannels->is<int>() && outputChannels->as<int>() == 2;
@@ -190,7 +174,11 @@ bool ConfigModel::hasStoredConfig() const
 
 void ConfigModel::setDefaults()
 {
-    setInstallDefaults(true, 32);
+    // Shared mode accepts any host sample rate and coexists with other
+    // applications; Exclusive is the opt-in for latency chasers. An Exclusive
+    // default made the driver fail to load in hosts running at a rate the
+    // device does not do natively (issue #16).
+    setInstallDefaults(false, 128);
 }
 
 void ConfigModel::setInstallDefaults(bool exclusive, int bufferSizeSamples)
@@ -201,9 +189,6 @@ void ConfigModel::setInstallDefaults(bool exclusive, int bufferSizeSamples)
     m_inputEnabled = true;
     m_inputStereoEmulation = false;
     m_outputStereoEmulation = false;
-    m_inputDeviceName = QMediaDevices::defaultAudioInput().description();
-    m_outputDeviceName = QMediaDevices::defaultAudioOutput().description();
-    refreshDeviceLists();
     m_loading = false;
 
     emit bufferSizeChanged();
@@ -218,10 +203,7 @@ void ConfigModel::setInstallDefaults(bool exclusive, int bufferSizeSamples)
 
 void ConfigModel::reloadFromFile()
 {
-    // The watcher fires for our own saves too. Re-loading one costs the state
-    // that the file cannot express: a disabled input writes an empty device
-    // name, so a self-reload forgets which device to go back to and the input
-    // can never be switched on again.
+    // The watcher fires for our own saves too; skip those.
     QFile file(m_configPath);
     if (file.open(QIODevice::ReadOnly)) {
         const QByteArray current = file.readAll();
@@ -232,37 +214,43 @@ void ConfigModel::reloadFromFile()
     load();
 }
 
-void ConfigModel::writeTomlFile()
+QString ConfigModel::tomlText() const
 {
-    if (m_loading)
-        return;
-
     QString text;
     QTextStream out(&text);
     out << "backend = \"Windows WASAPI\"" << "\n"
         << "bufferSizeSamples = " << bufferSize() << "\n"
         << "\n"
-        << "[input]" << "\n"
-        << "device = \"" << (m_inputEnabled ? m_inputDeviceName : QString()) << "\"\n";
+        << "[input]" << "\n";
+    // No device key: the driver uses the Windows default device. The empty
+    // string is the driver's "input off" switch.
+    if (!m_inputEnabled)
+        out << "device = \"\"" << "\n";
     if (m_inputEnabled && m_inputStereoEmulation)
         out << "channels = 2" << "\n";
     out << "suggestedLatencySeconds = 0.0" << "\n"
         << "wasapiExclusiveMode = " << (m_exclusiveMode ? "true" : "false") << "\n"
         << "\n"
-        << "[output]" << "\n"
-        << "device = \"" << m_outputDeviceName << "\"\n";
+        << "[output]" << "\n";
     if (m_outputStereoEmulation)
         out << "channels = 2" << "\n";
     out << "suggestedLatencySeconds = 0.0" << "\n"
         << "wasapiExclusiveMode = " << (m_exclusiveMode ? "true" : "false") << "\n";
     out.flush();
+    return text;
+}
+
+void ConfigModel::writeTomlFile()
+{
+    if (m_loading)
+        return;
 
     QSaveFile file(m_configPath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
         return;
     // Remembered so the file watcher can tell our own writes from an external
     // edit; reloading our own write would re-derive state we already hold.
-    m_lastWritten = text.toUtf8();
+    m_lastWritten = tomlText().toUtf8();
     file.write(m_lastWritten);
     file.commit();
     emitStatusSummaryChanged();
@@ -271,24 +259,6 @@ void ConfigModel::writeTomlFile()
 void ConfigModel::emitStatusSummaryChanged()
 {
     emit statusSummaryChanged();
-}
-
-void ConfigModel::setInputDevice(const QString &name)
-{
-    if (m_inputDeviceName == name)
-        return;
-    m_inputDeviceName = name;
-    emit inputDeviceChanged();
-    writeTomlFile();
-}
-
-void ConfigModel::setOutputDevice(const QString &name)
-{
-    if (m_outputDeviceName == name)
-        return;
-    m_outputDeviceName = name;
-    emit outputDeviceChanged();
-    writeTomlFile();
 }
 
 void ConfigModel::setInputEnabled(bool enabled)
