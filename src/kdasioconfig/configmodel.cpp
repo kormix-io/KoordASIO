@@ -71,14 +71,26 @@ ConfigModel::ConfigModel(QObject *parent)
         refreshDeviceLists();
         if (healPinnedDevices())
             writeTomlFile();
+        emit defaultDevicesChanged();
         emitStatusSummaryChanged();
     });
     connect(m_devices, &QMediaDevices::audioOutputsChanged, this, [this]() {
         refreshDeviceLists();
         if (healPinnedDevices())
             writeTomlFile();
+        emit defaultDevicesChanged();
         emitStatusSummaryChanged();
     });
+}
+
+QString ConfigModel::defaultInputDevice() const
+{
+    return QMediaDevices::defaultAudioInput().description();
+}
+
+QString ConfigModel::defaultOutputDevice() const
+{
+    return QMediaDevices::defaultAudioOutput().description();
 }
 
 QStringList ConfigModel::bufferSizeChoices() const
@@ -99,8 +111,8 @@ QString ConfigModel::statusSummary() const
         return name.length() > limit ? name.left(limit - 1) + QChar(0x2026) : name;
     };
     const QString input = !m_inputEnabled ? QStringLiteral("off")
-        : elide(m_inputDeviceName.isEmpty() ? m_defaultInputName : m_inputDeviceName);
-    const QString output = elide(m_outputDeviceName.isEmpty() ? m_defaultOutputName : m_outputDeviceName);
+        : elide(m_inputDeviceName.isEmpty() ? defaultInputDevice() : m_inputDeviceName);
+    const QString output = elide(m_outputDeviceName.isEmpty() ? defaultOutputDevice() : m_outputDeviceName);
     const QString mode = m_exclusiveMode ? QStringLiteral("Exclusive") : QStringLiteral("Shared");
     return QStringLiteral("Input:   %1\nOutput:  %2\nMode:    %3\nBuffer:  %4 samples")
         .arg(input, output, mode)
@@ -109,16 +121,6 @@ QString ConfigModel::statusSummary() const
 
 void ConfigModel::refreshDeviceLists()
 {
-    // The default endpoints are cached here, on the device-change path, so the
-    // getters and statusSummary never touch COM on an ordinary settings change.
-    const QString defaultInput = QMediaDevices::defaultAudioInput().description();
-    const QString defaultOutput = QMediaDevices::defaultAudioOutput().description();
-    if (defaultInput != m_defaultInputName || defaultOutput != m_defaultOutputName) {
-        m_defaultInputName = defaultInput;
-        m_defaultOutputName = defaultOutput;
-        emit defaultDevicesChanged();
-    }
-
     QStringList inputs;
     for (const QAudioDevice &device : m_devices->audioInputs())
         inputs << device.description();
@@ -187,6 +189,7 @@ void ConfigModel::load()
     emit exclusiveModeChanged();
     emit inputDeviceChanged();
     emit outputDeviceChanged();
+    emit defaultDevicesChanged();
     emitStatusSummaryChanged();
 
     // A healed pin (or a config from a version with different semantics, such
@@ -271,14 +274,20 @@ void ConfigModel::setInstallDefaults(bool exclusive, int bufferSizeSamples)
     emit exclusiveModeChanged();
     emit inputDeviceChanged();
     emit outputDeviceChanged();
+    emit defaultDevicesChanged();
     writeTomlFile();
 }
 
 void ConfigModel::reloadFromFile()
 {
-    // The watcher fires for our own saves too; skip those.
+    // The watcher fires for our own saves too; skip those. The file MUST be
+    // read in Text mode: writeTomlFile writes in Text mode, so the disk bytes
+    // are CRLF while m_lastWritten holds "\n". Comparing raw bytes never
+    // matched, which made every save the app itself made trigger a full
+    // load() - config parse, COM device enumeration, every signal - and the
+    // panel visibly hitched on each settings click.
     QFile file(m_configPath);
-    if (file.open(QIODevice::ReadOnly)) {
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         const QByteArray current = file.readAll();
         file.close();
         if (current == m_lastWritten)

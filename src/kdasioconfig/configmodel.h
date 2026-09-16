@@ -40,8 +40,8 @@ public:
     QStringList outputDevices() const { return m_outputDevices; }
     QString inputDevice() const { return m_inputDeviceName; }
     QString outputDevice() const { return m_outputDeviceName; }
-    QString defaultInputDevice() const { return m_defaultInputName; }
-    QString defaultOutputDevice() const { return m_defaultOutputName; }
+    QString defaultInputDevice() const;
+    QString defaultOutputDevice() const;
     bool inputEnabled() const { return m_inputEnabled; }
     bool exclusiveMode() const { return m_exclusiveMode; }
     int bufferSizeIndex() const { return m_bufferSizeIndex; }
@@ -97,10 +97,6 @@ private:
     QString m_outputDeviceName;  // empty = follow the Windows default
     QStringList m_inputDevices;
     QStringList m_outputDevices;
-    // Cached: querying the default endpoints goes through COM, and doing that
-    // on the UI thread for every settings change made the panel hitch.
-    QString m_defaultInputName;
-    QString m_defaultOutputName;
     QString m_configPath;
     QString m_version;
     QByteArray m_lastWritten;

@@ -6,7 +6,10 @@ ApplicationWindow {
     id: root
     width: 302
     minimumWidth: 302
-    maximumWidth: 336
+    // Wide enough to read long endpoint names in full — Windows device names
+    // like "Windows default (Microphone (9- FHD Camera Microphone))" blow well
+    // past the compact default width.
+    maximumWidth: 680
     // Derived, not hardcoded: a fixed height smaller than the layout needs
     // silently clips the footer, and one larger leaves a dead gap above it.
     height: mainColumn.implicitHeight
@@ -166,11 +169,14 @@ ApplicationWindow {
                         enabled: config.inputEnabled
                         ToolTip.visible: hovered && !popup.visible
                         ToolTip.delay: 400
+                        // Lead with the full entry text: the combo elides long
+                        // device names, and the tooltip is where they can be
+                        // read in full.
                         ToolTip.text: !config.inputEnabled
                             ? "Input is switched off in Settings"
-                            : currentIndex === 0
+                            : currentText + "\n\n" + (currentIndex === 0
                                 ? "Follows whatever Windows makes the default recording device"
-                                : "Recording device KoordASIO captures from"
+                                : "Recording device KoordASIO captures from")
                         onActivated: config.inputDevice = currentIndex === 0 ? "" : config.inputDevices[currentIndex - 1]
                         Component.onCompleted: syncInputDevice()
                         Connections {
@@ -208,9 +214,9 @@ ApplicationWindow {
                         model: ["Windows default (" + config.defaultOutputDevice + ")"].concat(config.outputDevices)
                         ToolTip.visible: hovered && !popup.visible
                         ToolTip.delay: 400
-                        ToolTip.text: currentIndex === 0
+                        ToolTip.text: currentText + "\n\n" + (currentIndex === 0
                             ? "Follows whatever Windows makes the default playback device"
-                            : "Playback device KoordASIO sends audio to"
+                            : "Playback device KoordASIO sends audio to")
                         onActivated: config.outputDevice = currentIndex === 0 ? "" : config.outputDevices[currentIndex - 1]
                         Component.onCompleted: syncOutputDevice()
                         Connections {
