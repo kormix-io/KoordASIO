@@ -7,6 +7,7 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QStringConverter>
 #include <QTextStream>
@@ -25,6 +26,37 @@ QString readAppVersion()
 #endif
 }
 
+// Windows numbers duplicate endpoints into their friendly names — "Speakers (3- USB
+// Audio Device)" — and the number changes when the device moves to another USB port.
+// Strip the ordinals so a pinned name can be recognized across re-enumerations.
+QString stripWindowsDeviceOrdinals(const QString &name)
+{
+    QString result = name;
+    result.remove(QRegularExpression(QStringLiteral("^\\d+ - ")));
+    result.replace(QRegularExpression(QStringLiteral("\\(\\d+- ")), QStringLiteral("("));
+    return result;
+}
+
+// A pinned name that is no longer present would make the driver refuse to load.
+// Re-match it to the same device under its new number when that is unambiguous;
+// when the device is really gone, clear the pin so the config follows the
+// Windows default instead. Returns true if the name changed.
+bool healPinnedDevice(QString &name, const QStringList &available)
+{
+    if (name.isEmpty() || available.isEmpty() || available.contains(name))
+        return false;
+    const QString stripped = stripWindowsDeviceOrdinals(name);
+    QStringList matches;
+    for (const QString &candidate : available)
+        if (stripWindowsDeviceOrdinals(candidate) == stripped)
+            matches << candidate;
+    const QString replacement = matches.size() == 1 ? matches.first() : QString();
+    qInfo() << "Pinned device" << name << "is gone;"
+            << (replacement.isEmpty() ? "following the Windows default" : "re-matched to " + replacement);
+    name = replacement;
+    return true;
+}
+
 }
 
 ConfigModel::ConfigModel(QObject *parent)
@@ -36,26 +68,27 @@ ConfigModel::ConfigModel(QObject *parent)
 {
     m_systrayEnabled = m_settings.value(QStringLiteral("systrayEnabled"), true).toBool();
     connect(m_devices, &QMediaDevices::audioInputsChanged, this, [this]() {
-        emit inputDeviceChanged();
+        refreshDeviceLists();
+        if (healPinnedDevices())
+            writeTomlFile();
+        emit defaultDevicesChanged();
         emitStatusSummaryChanged();
     });
     connect(m_devices, &QMediaDevices::audioOutputsChanged, this, [this]() {
-        emit outputDeviceChanged();
+        refreshDeviceLists();
+        if (healPinnedDevices())
+            writeTomlFile();
+        emit defaultDevicesChanged();
         emitStatusSummaryChanged();
     });
 }
 
-// The config never names devices: the driver follows the Windows default
-// devices, the way a configless FlexASIO does. Pinning a name broke the driver
-// outright whenever Windows renumbered an endpoint ("Speakers (3- USB Audio
-// Device)" coming back as "(4- ...)" after a port change). These getters only
-// feed the UI, so the user can see where audio will go.
-QString ConfigModel::inputDevice() const
+QString ConfigModel::defaultInputDevice() const
 {
     return QMediaDevices::defaultAudioInput().description();
 }
 
-QString ConfigModel::outputDevice() const
+QString ConfigModel::defaultOutputDevice() const
 {
     return QMediaDevices::defaultAudioOutput().description();
 }
@@ -77,11 +110,46 @@ QString ConfigModel::statusSummary() const
         const int limit = 26;
         return name.length() > limit ? name.left(limit - 1) + QChar(0x2026) : name;
     };
-    const QString input = m_inputEnabled ? elide(inputDevice()) : QStringLiteral("off");
+    const QString input = !m_inputEnabled ? QStringLiteral("off")
+        : elide(m_inputDeviceName.isEmpty() ? defaultInputDevice() : m_inputDeviceName);
+    const QString output = elide(m_outputDeviceName.isEmpty() ? defaultOutputDevice() : m_outputDeviceName);
     const QString mode = m_exclusiveMode ? QStringLiteral("Exclusive") : QStringLiteral("Shared");
     return QStringLiteral("Input:   %1\nOutput:  %2\nMode:    %3\nBuffer:  %4 samples")
-        .arg(input, elide(outputDevice()), mode)
+        .arg(input, output, mode)
         .arg(bufferSize());
+}
+
+void ConfigModel::refreshDeviceLists()
+{
+    QStringList inputs;
+    for (const QAudioDevice &device : m_devices->audioInputs())
+        inputs << device.description();
+
+    QStringList outputs;
+    for (const QAudioDevice &device : m_devices->audioOutputs())
+        outputs << device.description();
+
+    if (inputs == m_inputDevices && outputs == m_outputDevices)
+        return;
+
+    m_inputDevices = inputs;
+    m_outputDevices = outputs;
+    emit inputDevicesChanged();
+    emit outputDevicesChanged();
+}
+
+bool ConfigModel::healPinnedDevices()
+{
+    bool healed = false;
+    if (healPinnedDevice(m_inputDeviceName, m_inputDevices)) {
+        healed = true;
+        emit inputDeviceChanged();
+    }
+    if (healPinnedDevice(m_outputDeviceName, m_outputDevices)) {
+        healed = true;
+        emit outputDeviceChanged();
+    }
+    return healed;
 }
 
 int ConfigModel::bufferSizeToIndex(int samples) const
@@ -93,6 +161,7 @@ int ConfigModel::bufferSizeToIndex(int samples) const
 void ConfigModel::load()
 {
     m_loading = true;
+    refreshDeviceLists();
 
     QFile configFile(m_configPath);
     if (!configFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -112,6 +181,7 @@ void ConfigModel::load()
     }
 
     applyTomlValues(pr.value);
+    healPinnedDevices();
     m_loading = false;
 
     emit bufferSizeChanged();
@@ -121,11 +191,11 @@ void ConfigModel::load()
     emit exclusiveModeChanged();
     emit inputDeviceChanged();
     emit outputDeviceChanged();
+    emit defaultDevicesChanged();
     emitStatusSummaryChanged();
 
-    // Configs written by older versions pin device names, which the driver
-    // fails on once Windows renumbers an endpoint. Rewriting in the canonical
-    // keyless form heals them the moment this app runs.
+    // A healed pin (or a config from a version with different semantics) must
+    // reach the file, or the driver keeps reading a stale name.
     if (tomlText().toUtf8() != configData)
         writeTomlFile();
 }
@@ -138,10 +208,18 @@ void ConfigModel::applyTomlValues(const toml::Value &v)
     else
         m_bufferSizeIndex = bufferSizeToIndex(64);
 
-    // An empty device string is FlexASIO's "input off"; any other value —
-    // including a pinned name from an older version — means input is on.
+    // No device key = follow the Windows default. An empty device string is
+    // FlexASIO's "input off". A non-empty one is an explicitly pinned device.
     const toml::Value *inputDev = v.find("input.device");
-    m_inputEnabled = !(inputDev && inputDev->is<std::string>() && inputDev->as<std::string>().empty());
+    if (inputDev && inputDev->is<std::string>()) {
+        const QString device = QString::fromStdString(inputDev->as<std::string>());
+        m_inputEnabled = !device.isEmpty();
+        if (m_inputEnabled)
+            m_inputDeviceName = device;
+    } else {
+        m_inputEnabled = true;
+        m_inputDeviceName.clear();
+    }
 
     const toml::Value *inputChannels = v.find("input.channels");
     m_inputStereoEmulation = inputChannels && inputChannels->is<int>() && inputChannels->as<int>() == 2;
@@ -149,6 +227,12 @@ void ConfigModel::applyTomlValues(const toml::Value &v)
     const toml::Value *inputExcl = v.find("input.wasapiExclusiveMode");
     if (inputExcl && inputExcl->is<bool>())
         m_exclusiveMode = inputExcl->as<bool>();
+
+    const toml::Value *outputDev = v.find("output.device");
+    if (outputDev && outputDev->is<std::string>())
+        m_outputDeviceName = QString::fromStdString(outputDev->as<std::string>());
+    else
+        m_outputDeviceName.clear();
 
     const toml::Value *outputChannels = v.find("output.channels");
     m_outputStereoEmulation = outputChannels && outputChannels->is<int>() && outputChannels->as<int>() == 2;
@@ -189,6 +273,9 @@ void ConfigModel::setInstallDefaults(bool exclusive, int bufferSizeSamples)
     m_inputEnabled = true;
     m_inputStereoEmulation = false;
     m_outputStereoEmulation = false;
+    m_inputDeviceName.clear();
+    m_outputDeviceName.clear();
+    refreshDeviceLists();
     m_loading = false;
 
     emit bufferSizeChanged();
@@ -198,6 +285,7 @@ void ConfigModel::setInstallDefaults(bool exclusive, int bufferSizeSamples)
     emit exclusiveModeChanged();
     emit inputDeviceChanged();
     emit outputDeviceChanged();
+    emit defaultDevicesChanged();
     writeTomlFile();
 }
 
@@ -222,16 +310,20 @@ QString ConfigModel::tomlText() const
         << "bufferSizeSamples = " << bufferSize() << "\n"
         << "\n"
         << "[input]" << "\n";
-    // No device key: the driver uses the Windows default device. The empty
-    // string is the driver's "input off" switch.
+    // A pinned device is written by name; following the Windows default writes
+    // no device key at all. The empty string is the driver's "input off" switch.
     if (!m_inputEnabled)
         out << "device = \"\"" << "\n";
+    else if (!m_inputDeviceName.isEmpty())
+        out << "device = \"" << m_inputDeviceName << "\"\n";
     if (m_inputEnabled && m_inputStereoEmulation)
         out << "channels = 2" << "\n";
     out << "suggestedLatencySeconds = 0.0" << "\n"
         << "wasapiExclusiveMode = " << (m_exclusiveMode ? "true" : "false") << "\n"
         << "\n"
         << "[output]" << "\n";
+    if (!m_outputDeviceName.isEmpty())
+        out << "device = \"" << m_outputDeviceName << "\"\n";
     if (m_outputStereoEmulation)
         out << "channels = 2" << "\n";
     out << "suggestedLatencySeconds = 0.0" << "\n"
@@ -259,6 +351,24 @@ void ConfigModel::writeTomlFile()
 void ConfigModel::emitStatusSummaryChanged()
 {
     emit statusSummaryChanged();
+}
+
+void ConfigModel::setInputDevice(const QString &name)
+{
+    if (m_inputDeviceName == name)
+        return;
+    m_inputDeviceName = name;
+    emit inputDeviceChanged();
+    writeTomlFile();
+}
+
+void ConfigModel::setOutputDevice(const QString &name)
+{
+    if (m_outputDeviceName == name)
+        return;
+    m_outputDeviceName = name;
+    emit outputDeviceChanged();
+    writeTomlFile();
 }
 
 void ConfigModel::setInputEnabled(bool enabled)

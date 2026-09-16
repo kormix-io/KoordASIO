@@ -147,11 +147,11 @@ ApplicationWindow {
             Layout.rightMargin: 8
             spacing: 20
 
-            // KoordASIO follows the Windows default devices, like a configless
-            // FlexASIO: nothing is pinned, so devices can come, go and be
-            // renumbered without breaking the driver. The labels just show
-            // where audio currently goes; the buttons open Windows Sound
-            // settings to change it.
+            // Entry 0 is "Windows default": nothing is pinned in the config, so
+            // devices can come, go and be renumbered without breaking the
+            // driver. Picking a specific device pins it by name; if that device
+            // later disappears, the pin is re-matched across Windows
+            // renumbering or falls back to the default entry.
             SectionPanel {
                 title: "INPUT DEVICE"
 
@@ -159,21 +159,37 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 6
 
-                    Label {
+                    StyledComboBox {
+                        id: inputDeviceCombo
                         Layout.fillWidth: true
-                        text: config.inputEnabled ? config.inputDevice : "off — enable in Settings"
-                        elide: Text.ElideRight
-                        color: config.inputEnabled ? clrText : clrMuted
-                        ToolTip.visible: inputHover.hovered
+                        model: ["Windows default (" + config.defaultInputDevice + ")"].concat(config.inputDevices)
+                        enabled: config.inputEnabled
+                        ToolTip.visible: hovered && !popup.visible
                         ToolTip.delay: 400
-                        ToolTip.text: "KoordASIO records from the Windows default input device"
-                        HoverHandler { id: inputHover }
+                        ToolTip.text: !config.inputEnabled
+                            ? "Input is switched off in Settings"
+                            : currentIndex === 0
+                                ? "Follows whatever Windows makes the default recording device"
+                                : "Recording device KoordASIO captures from"
+                        onActivated: config.inputDevice = currentIndex === 0 ? "" : config.inputDevices[currentIndex - 1]
+                        Component.onCompleted: syncInputDevice()
+                        Connections {
+                            target: config
+                            function onInputDeviceChanged() { inputDeviceCombo.syncInputDevice() }
+                            function onInputDevicesChanged() { inputDeviceCombo.syncInputDevice() }
+                            function onDefaultDevicesChanged() { inputDeviceCombo.syncInputDevice() }
+                        }
+                        function syncInputDevice() {
+                            const i = config.inputDevices.indexOf(config.inputDevice)
+                            currentIndex = i >= 0 ? i + 1 : 0
+                        }
                     }
 
                     IconButton {
                         iconSource: "qrc:/images/config-btn.png"
+                        enabled: config.inputEnabled
                         ToolTip.visible: hovered
-                        ToolTip.text: "Change the default in Windows input settings"
+                        ToolTip.text: "Windows input settings"
                         onClicked: config.openInputSettings()
                     }
                 }
@@ -186,21 +202,33 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 6
 
-                    Label {
+                    StyledComboBox {
+                        id: outputDeviceCombo
                         Layout.fillWidth: true
-                        text: config.outputDevice
-                        elide: Text.ElideRight
-                        color: clrText
-                        ToolTip.visible: outputHover.hovered
+                        model: ["Windows default (" + config.defaultOutputDevice + ")"].concat(config.outputDevices)
+                        ToolTip.visible: hovered && !popup.visible
                         ToolTip.delay: 400
-                        ToolTip.text: "KoordASIO plays to the Windows default output device"
-                        HoverHandler { id: outputHover }
+                        ToolTip.text: currentIndex === 0
+                            ? "Follows whatever Windows makes the default playback device"
+                            : "Playback device KoordASIO sends audio to"
+                        onActivated: config.outputDevice = currentIndex === 0 ? "" : config.outputDevices[currentIndex - 1]
+                        Component.onCompleted: syncOutputDevice()
+                        Connections {
+                            target: config
+                            function onOutputDeviceChanged() { outputDeviceCombo.syncOutputDevice() }
+                            function onOutputDevicesChanged() { outputDeviceCombo.syncOutputDevice() }
+                            function onDefaultDevicesChanged() { outputDeviceCombo.syncOutputDevice() }
+                        }
+                        function syncOutputDevice() {
+                            const i = config.outputDevices.indexOf(config.outputDevice)
+                            currentIndex = i >= 0 ? i + 1 : 0
+                        }
                     }
 
                     IconButton {
                         iconSource: "qrc:/images/config-btn.png"
                         ToolTip.visible: hovered
-                        ToolTip.text: "Change the default in Windows output settings"
+                        ToolTip.text: "Windows output settings"
                         onClicked: config.openOutputSettings()
                     }
                 }

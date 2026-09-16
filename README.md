@@ -49,24 +49,28 @@ The installer sets up a working configuration straight away:
 
  - WASAPI [Shared Mode][BACKENDS] — accepts any sample rate your host asks
    for, and plays alongside other applications
- - Follows the Windows default recording and playback audio devices
+ - The Windows default recording and playback audio devices
  - 32-bit float sample type
  - 128-sample buffer size
  - Minimum "suggested" latency
 
-KoordASIO always uses the Windows default devices — plug things in, unplug
-them, change the default in Windows Sound settings, and KoordASIO follows,
-with nothing to reconfigure. For the lowest possible latency and bit-perfect
-output, switch to [Exclusive Mode][BACKENDS] in the Control GUI; note that
-Exclusive Mode locks the device to one application and requires your host to
-run at a sample rate the device supports natively (usually 48000 Hz). If the
-rates don't match, KoordASIO tells you exactly that when the host tries to
-start audio, and offers to switch you back to Shared Mode.
+The KoordASIO Control GUI lets you select your Input/Output audio devices
+(with a link to the relevant Windows control panel), choose between Shared or
+Exclusive mode, and change the Buffer Size in steps between 32 and 2048
+samples. The device selectors start on **"Windows default"**, which follows
+whatever Windows makes the default device — plug things in, unplug them,
+change the default in Windows Sound settings, and KoordASIO follows with
+nothing to reconfigure. Picking a specific device pins it; if a pinned device
+later disappears or Windows renumbers it (a USB port change is enough),
+KoordASIO re-matches it, or falls back to the Windows default rather than
+refusing to load.
 
-The KoordASIO Control GUI shows which devices audio goes to (with a link to
-the Windows control panel where the defaults are changed), lets you choose
-between Shared or Exclusive mode, and changes the Buffer Size in steps between
-32 and 2048 samples.
+For the lowest possible latency and bit-perfect output, switch to
+[Exclusive Mode][BACKENDS]; note that Exclusive Mode locks the device to one
+application and requires your host to run at a sample rate the device supports
+natively (usually 48000 Hz). If the rates don't match, KoordASIO tells you
+exactly that when the host tries to start audio, and offers to switch you back
+to Shared Mode.
 The menu button in the top right holds the less-used options: disabling input
 when it isn't needed, presenting mono devices as stereo for ASIO hosts that
 expect two channels, and turning the system tray icon on or off.
